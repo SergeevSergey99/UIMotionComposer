@@ -1,6 +1,6 @@
 
 using System.Collections.Generic;
-using Sirenix.OdinInspector;
+using UIPanelSystem.Inspector;
 using UnityEngine;
 using UnityEngine.Serialization;
 

@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using Sirenix.OdinInspector;
+using UIPanelSystem.Inspector;
 using UnityEngine;
 
 [Serializable]
@@ -27,7 +27,7 @@ public class AnimationData
 
     [TabGroup("Pivot", TextColor = "@this.Pivot.AnimationColor"), HideLabel, SerializeField]
     public PivotAnimationHandler Pivot = new();
-    
+
     public List<IAnimationHandler> GetHandlers()
     {
         return new List<IAnimationHandler> { Alpha, Position, Rotation, Scale, Size, Pivot };

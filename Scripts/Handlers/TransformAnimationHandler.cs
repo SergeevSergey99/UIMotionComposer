@@ -1,5 +1,5 @@
-﻿using DG.Tweening;
-using Sirenix.OdinInspector;
+using UIPanelSystem.Inspector;
+using UIPanelSystem.Tweening;
 using UnityEngine;
 
 [System.Serializable]
@@ -7,32 +7,37 @@ public abstract class TransformAnimationHandler : BaseAnimationHandler
 {
     [ShowIf(nameof(IsEnabled)), LabelText("Initial Value Mode")]
     public InitialValueMode InitialMode = InitialValueMode.OffsetFromStored;
-    
-    [ShowIf("@IsEnabled && InitialMode == InitialValueMode.Custom"), LabelText("Initial Value")]
+
+    [ShowIf(nameof(ShowInitialValue)), LabelText("Initial Value")]
     public Vector3 InitialValue = Vector3.zero;
-    
-    [ShowIf("@IsEnabled && InitialMode == InitialValueMode.OffsetFromStored"), LabelText("Initial Offset")]
+
+    [ShowIf(nameof(ShowInitialOffset)), LabelText("Initial Offset")]
     public Vector3 InitialOffset = Vector3.zero;
 
     [ShowIf(nameof(IsEnabled)), LabelText("Target Value Mode")]
     public TargetValueMode TargetMode = TargetValueMode.StoredInitial;
-    
-    [ShowIf("@IsEnabled && TargetMode == TargetValueMode.Custom"), LabelText("Target Value")]
+
+    [ShowIf(nameof(ShowTargetValue)), LabelText("Target Value")]
     public Vector3 TargetValue = Vector3.zero;
-    
-    [ShowIf("@IsEnabled && TargetMode == TargetValueMode.OffsetFromStored"), LabelText("Target Offset")]
+
+    [ShowIf(nameof(ShowTargetOffset)), LabelText("Target Offset")]
     public Vector3 TargetOffset = Vector3.zero;
 
     [ShowIf(nameof(IsSeparate)), HideLabel]
     public SeparateAnimationData Separate = new();
 
+    private bool ShowInitialValue => IsEnabled && InitialMode == InitialValueMode.Custom;
+    private bool ShowInitialOffset => IsEnabled && InitialMode == InitialValueMode.OffsetFromStored;
+    private bool ShowTargetValue => IsEnabled && TargetMode == TargetValueMode.Custom;
+    private bool ShowTargetOffset => IsEnabled && TargetMode == TargetValueMode.OffsetFromStored;
+
     protected abstract Vector3 GetCurrentValue(RectTransform rectTransform);
     protected abstract Vector3 GetStartValue(TempValues startValues);
-    protected abstract Tween CreateUnifiedTween(RectTransform rectTransform, Vector3 startValue, Vector3 targetValue, float duration);
-    protected abstract void AnimateComponent(Sequence sequence, RectTransform rectTransform, 
+    protected abstract IUITweener CreateUnifiedTween(RectTransform rectTransform, Vector3 startValue, Vector3 targetValue, float duration);
+    protected abstract void AnimateComponent(IUISequence sequence, RectTransform rectTransform,
         int componentIndex, float currentValue, float targetValue, float duration, float delay, AnimationProccesData animationProccesData);
 
-    public override void AddToSequence(Sequence sequence, TempValues startValues, RectTransform rectTransform, CanvasGroup canvasGroup, float duration)
+    public override void AddToSequence(IUISequence sequence, TempValues startValues, RectTransform rectTransform, CanvasGroup canvasGroup, float duration)
     {
         if (!IsEnabled) return;
 
@@ -74,23 +79,23 @@ public abstract class TransformAnimationHandler : BaseAnimationHandler
         };
     }
 
-    private void AnimateSeparately(Sequence sequence, RectTransform rectTransform, Vector3 targetValue, float duration)
+    private void AnimateSeparately(IUISequence sequence, RectTransform rectTransform, Vector3 targetValue, float duration)
     {
         var currentValue = GetCurrentValue(rectTransform);
-        
+
         // X компонент
         var xTimeline = Separate.XAxis.Timeline.GetTimelineParams(duration);
-        AnimateComponent(sequence, rectTransform, 0, currentValue.x, targetValue.x, 
+        AnimateComponent(sequence, rectTransform, 0, currentValue.x, targetValue.x,
             xTimeline.duration, xTimeline.delay, Separate.XAxis);
 
         // Y компонент
         var yTimeline = Separate.YAxis.Timeline.GetTimelineParams(duration);
-        AnimateComponent(sequence, rectTransform, 1, currentValue.y, targetValue.y, 
+        AnimateComponent(sequence, rectTransform, 1, currentValue.y, targetValue.y,
             yTimeline.duration, yTimeline.delay, Separate.YAxis);
 
         // Z компонент
         var zTimeline = Separate.ZAxis.Timeline.GetTimelineParams(duration);
-        AnimateComponent(sequence, rectTransform, 2, currentValue.z, targetValue.z, 
+        AnimateComponent(sequence, rectTransform, 2, currentValue.z, targetValue.z,
             zTimeline.duration, zTimeline.delay, Separate.ZAxis);
     }
 }

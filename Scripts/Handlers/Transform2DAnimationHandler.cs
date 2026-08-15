@@ -1,5 +1,5 @@
-﻿using DG.Tweening;
-using Sirenix.OdinInspector;
+using UIPanelSystem.Inspector;
+using UIPanelSystem.Tweening;
 using UnityEngine;
 
 [System.Serializable]
@@ -7,32 +7,37 @@ public abstract class Transform2DAnimationHandler : BaseAnimationHandler
 {
     [ShowIf(nameof(IsEnabled)), LabelText("Initial Value Mode")]
     public InitialValueMode InitialMode = InitialValueMode.OffsetFromStored;
-    
-    [ShowIf("@IsEnabled && InitialMode == InitialValueMode.Custom"), LabelText("Initial Value")]
+
+    [ShowIf(nameof(ShowInitialValue)), LabelText("Initial Value")]
     public Vector2 InitialValue = Vector2.zero;
-    
-    [ShowIf("@IsEnabled && InitialMode == InitialValueMode.OffsetFromStored"), LabelText("Initial Offset")]
+
+    [ShowIf(nameof(ShowInitialOffset)), LabelText("Initial Offset")]
     public Vector2 InitialOffset = Vector2.zero;
 
     [ShowIf(nameof(IsEnabled)), LabelText("Target Value Mode")]
     public TargetValueMode TargetMode = TargetValueMode.StoredInitial;
-    
-    [ShowIf("@IsEnabled && TargetMode == TargetValueMode.Custom"), LabelText("Target Value")]
+
+    [ShowIf(nameof(ShowTargetValue)), LabelText("Target Value")]
     public Vector2 TargetValue = Vector2.zero;
-    
-    [ShowIf("@IsEnabled && TargetMode == TargetValueMode.OffsetFromStored"), LabelText("Target Offset")]
+
+    [ShowIf(nameof(ShowTargetOffset)), LabelText("Target Offset")]
     public Vector2 TargetOffset = Vector2.zero;
 
     [ShowIf(nameof(IsSeparate)), HideLabel]
     public Separate2DAnimationData Separate2D = new Separate2DAnimationData();
 
+    private bool ShowInitialValue => IsEnabled && InitialMode == InitialValueMode.Custom;
+    private bool ShowInitialOffset => IsEnabled && InitialMode == InitialValueMode.OffsetFromStored;
+    private bool ShowTargetValue => IsEnabled && TargetMode == TargetValueMode.Custom;
+    private bool ShowTargetOffset => IsEnabled && TargetMode == TargetValueMode.OffsetFromStored;
+
     protected abstract Vector2 GetCurrentValue(RectTransform rectTransform);
     protected abstract Vector2 GetStartValue(TempValues startValues);
-    protected abstract Tween CreateUnifiedTween(RectTransform rectTransform, Vector2 startValue, Vector2 targetValue, float duration);
-    protected abstract void AnimateComponent(Sequence sequence, RectTransform rectTransform, 
+    protected abstract IUITweener CreateUnifiedTween(RectTransform rectTransform, Vector2 startValue, Vector2 targetValue, float duration);
+    protected abstract void AnimateComponent(IUISequence sequence, RectTransform rectTransform,
         int componentIndex, float currentValue, float targetValue, float duration, float delay, AnimationProccesData animationProccesData);
 
-    public override void AddToSequence(Sequence sequence, TempValues startValues, RectTransform rectTransform, CanvasGroup canvasGroup, float duration)
+    public override void AddToSequence(IUISequence sequence, TempValues startValues, RectTransform rectTransform, CanvasGroup canvasGroup, float duration)
     {
         if (!IsEnabled) return;
 
@@ -74,18 +79,18 @@ public abstract class Transform2DAnimationHandler : BaseAnimationHandler
         };
     }
 
-    private void AnimateSeparately(Sequence sequence, RectTransform rectTransform, Vector2 targetValue, float duration)
+    private void AnimateSeparately(IUISequence sequence, RectTransform rectTransform, Vector2 targetValue, float duration)
     {
         var currentValue = GetCurrentValue(rectTransform);
-        
+
         // X компонент
         var xTimeline = Separate2D.XAxis.Timeline.GetTimelineParams(duration);
-        AnimateComponent(sequence, rectTransform, 0, currentValue.x, targetValue.x, 
+        AnimateComponent(sequence, rectTransform, 0, currentValue.x, targetValue.x,
             xTimeline.duration, xTimeline.delay, Separate2D.XAxis);
 
         // Y компонент
         var yTimeline = Separate2D.YAxis.Timeline.GetTimelineParams(duration);
-        AnimateComponent(sequence, rectTransform, 1, currentValue.y, targetValue.y, 
+        AnimateComponent(sequence, rectTransform, 1, currentValue.y, targetValue.y,
             yTimeline.duration, yTimeline.delay, Separate2D.YAxis);
     }
 }

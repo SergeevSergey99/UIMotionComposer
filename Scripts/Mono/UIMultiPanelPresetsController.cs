@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using Sirenix.OdinInspector;
+using UIPanelSystem.Inspector;
 using UnityEngine;
 
 public class UIMultiPanelPresetsController : UIPanelPresetsController

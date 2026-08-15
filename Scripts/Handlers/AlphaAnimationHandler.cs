@@ -1,11 +1,11 @@
-﻿using DG.Tweening;
-using Sirenix.OdinInspector;
+using UIPanelSystem.Inspector;
+using UIPanelSystem.Tweening;
 using UnityEngine;
 
 [System.Serializable]
 public class AlphaAnimationHandler : IAnimationHandler
 {
-    [HideLabel, HorizontalGroup("Mode")]
+    [HideLabel]
     public SimpleAnimationMode Mode = SimpleAnimationMode.Disabled;
 
     [ShowIf(nameof(IsUnified)), HideLabel, InlineProperty]
@@ -13,28 +13,33 @@ public class AlphaAnimationHandler : IAnimationHandler
 
     [ShowIf(nameof(IsEnabled)), LabelText("Initial Value Mode")]
     public InitialValueMode InitialMode = InitialValueMode.Custom;
-    
-    [ShowIf("@IsEnabled && InitialMode == InitialValueMode.Custom"), LabelText("Initial Value"), Range(0f, 1f)]
+
+    [ShowIf(nameof(ShowInitialValue)), LabelText("Initial Value"), Range(0f, 1f)]
     public float InitialValue = 0f;
-    
-    [ShowIf("@IsEnabled && InitialMode == InitialValueMode.OffsetFromStored"), LabelText("Initial Offset"), Range(-1f, 1f)]
+
+    [ShowIf(nameof(ShowInitialOffset)), LabelText("Initial Offset"), Range(-1f, 1f)]
     public float InitialOffset = 0f;
 
     [ShowIf(nameof(IsEnabled)), LabelText("Target Value Mode")]
     public TargetValueMode TargetMode = TargetValueMode.Custom;
-    
-    [ShowIf("@IsEnabled && TargetMode == TargetValueMode.Custom"), LabelText("Target Value"), Range(0f, 1f)]
+
+    [ShowIf(nameof(ShowTargetValue)), LabelText("Target Value"), Range(0f, 1f)]
     public float TargetValue = 1f;
-    
-    [ShowIf("@IsEnabled && TargetMode == TargetValueMode.OffsetFromStored"), LabelText("Target Offset"), Range(-1f, 1f)]
+
+    [ShowIf(nameof(ShowTargetOffset)), LabelText("Target Offset"), Range(-1f, 1f)]
     public float TargetOffset = 0f;
 
     public Color AnimationColor => IsEnabled ? Color.white : Color.red;
-    public Sequence CurrentSequence { get; set; }
+    public IUISequence CurrentSequence { get; set; }
     public bool IsEnabled => Mode != SimpleAnimationMode.Disabled;
     public bool IsUnified => Mode == SimpleAnimationMode.Unified;
-    
-    public void AddToSequence(Sequence sequence, TempValues startValues, RectTransform rectTransform, CanvasGroup canvasGroup, float duration)
+
+    private bool ShowInitialValue => IsEnabled && InitialMode == InitialValueMode.Custom;
+    private bool ShowInitialOffset => IsEnabled && InitialMode == InitialValueMode.OffsetFromStored;
+    private bool ShowTargetValue => IsEnabled && TargetMode == TargetValueMode.Custom;
+    private bool ShowTargetOffset => IsEnabled && TargetMode == TargetValueMode.OffsetFromStored;
+
+    public void AddToSequence(IUISequence sequence, TempValues startValues, RectTransform rectTransform, CanvasGroup canvasGroup, float duration)
     {
         if (!IsEnabled) return;
 
@@ -45,16 +50,19 @@ public class AlphaAnimationHandler : IAnimationHandler
             InitialValueMode.OffsetFromStored => Mathf.Clamp01(startValues.alpha + InitialOffset),
             _ => startValues.alpha
         };
+
+        var startValue = canvasGroup.alpha;
         var targetValue = CalculateTargetValue(canvasGroup, startValues);
 
         if (IsUnified)
         {
             var timeline = Unified.Timeline.GetTimelineParams(duration);
-            sequence.Join(canvasGroup.DOFade(targetValue, timeline.duration)
+            sequence.Join(UITween
+                .Float(startValue, targetValue, timeline.duration, value => canvasGroup.alpha = value)
                 .Modify(Unified)
-                .SetUpdate(true)
                 .SetDelay(timeline.delay));
         }
+
         CurrentSequence = sequence;
     }
 

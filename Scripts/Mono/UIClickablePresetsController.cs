@@ -1,4 +1,4 @@
-using Sirenix.OdinInspector;
+using UIPanelSystem.Inspector;
 using UnityEngine;
 using System.Collections.Generic;
 
