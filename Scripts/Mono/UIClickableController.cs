@@ -1,6 +1,5 @@
 using UIPanelSystem.Inspector;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace UIPanelSystem
 {
@@ -10,17 +9,14 @@ namespace UIPanelSystem
     /// </summary>
     public class UIClickableController : BaseUIClickableController
     {
-        [FormerlySerializedAs("hoverPresetSo")]
         [BoxGroup("Hover Settings")]
         [LabelText("Hover Animation Preset"), SerializeField]
         protected UIAnimationPresetSO hoverAnimationPresetSo;
 
-        [FormerlySerializedAs("clickPresetSo")]
         [BoxGroup("Click Settings")]
         [LabelText("Click Animation Preset"), SerializeField]
         protected UIAnimationPresetSO clickAnimationPresetSo;
 
-        [FormerlySerializedAs("disablePresetSo")]
         [BoxGroup("Disable Settings")]
         [LabelText("Disable Animation Preset"), SerializeField]
         protected UIAnimationPresetSO disableAnimationPresetSo;

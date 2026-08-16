@@ -320,9 +320,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _canvasGroup: {fileID: 5721867328530405989}
-  hoverPresetSo: {fileID: 11400000, guid: 6974ffe0540f9a6479f898429f8448b3, type: 2}
-  clickPresetSo: {fileID: 11400000, guid: 5a49b1d0fa9325d44a24e67a8bd1a464, type: 2}
-  disablePresetSo: {fileID: 11400000, guid: 2b9db1f8beff96044aee0293545d850a, type: 2}
+  hoverAnimationPresetSo: {fileID: 11400000, guid: 6974ffe0540f9a6479f898429f8448b3, type: 2}
+  clickAnimationPresetSo: {fileID: 11400000, guid: 5a49b1d0fa9325d44a24e67a8bd1a464, type: 2}
+  disableAnimationPresetSo: {fileID: 11400000, guid: 2b9db1f8beff96044aee0293545d850a, type: 2}
   returnFromHoverPresetSo: {fileID: 11400000, guid: a653ea192a68559438f8314f4d91772a, type: 2}
   returnFromClickPresetSo: {fileID: 11400000, guid: 6974ffe0540f9a6479f898429f8448b3, type: 2}
   returnFromDisablePresetSo: {fileID: 11400000, guid: a653ea192a68559438f8314f4d91772a, type: 2}
