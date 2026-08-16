@@ -67,9 +67,13 @@ begin from its initial values, even mid-flight.
 Each controller stores the panel's authored pose once (`TempValues`) so presets can offset from it
 and return to it. That is what makes a preset like "slide in from the bottom" reusable on any panel.
 
+**Has Start Values** says whether that pose has been captured, and the pose itself only appears once
+it has. Clearing the toggle makes the controller capture again on the next play; the **Save Start
+Values** button captures immediately.
+
 The capture forces a layout rebuild first, so panels inside a `LayoutGroup` record the pose the
 layout gives them rather than the one authored in the prefab. If a panel is posed by something the
-rebuild cannot see, re-capture with the **Save Start Values** button on the component.
+rebuild cannot see, capture manually once the panel looks right.
 
 ## Layout attributes
 

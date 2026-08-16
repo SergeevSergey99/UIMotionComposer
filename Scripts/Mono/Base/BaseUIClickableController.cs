@@ -16,8 +16,15 @@ namespace UIPanelSystem
         private const float FallbackDisableDuration = 0.3f;
 
         [SerializeField] protected CanvasGroup _canvasGroup;
-        [SerializeField] private TempValues startValues = new TempValues();
-        [SerializeField, HideInInspector] private bool hasStartValues;
+
+        [SerializeField, LabelText("Has Start Values")]
+        [Tooltip("Whether the authored pose below has been captured yet. This is what the field being " +
+                 "an unassigned reference used to say. Clear it to make the clickable capture again on " +
+                 "the next play, or use the Save Start Values button to capture right now.")]
+        private bool hasStartValues;
+
+        [SerializeField, ShowIf(nameof(hasStartValues)), LabelText("Start Values")]
+        private TempValues startValues = new TempValues();
 
         public event Action OnHoverStarted;
         public event Action OnHoverEnded;
