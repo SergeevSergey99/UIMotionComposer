@@ -4,148 +4,215 @@ using UIPanelSystem.Inspector;
 using UIPanelSystem.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.UI;
 
-[RequireComponent(typeof(RectTransform))]
-public abstract class BaseUIClickableController : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
+namespace UIPanelSystem
 {
-    [SerializeField] protected CanvasGroup _canvasGroup;
-    [SerializeField] protected Button _button;
-
-    public event Action OnHoverStarted;
-    public event Action OnHoverEnded;
-    public event Action OnClickStarted;
-    public event Action OnClickEnded;
-    public event Action OnInteractableChanged;
-
-    public RectTransform RectTransform => transform as RectTransform;
-
-    protected List<IAnimationHandler> _hoverHandlers;
-    protected List<IAnimationHandler> _clickHandlers;
-    protected List<IAnimationHandler> _disableHandlers;
-    protected List<IAnimationHandler> _returnFromHoverHandlers;
-    protected List<IAnimationHandler> _returnFromClickHandlers;
-    protected List<IAnimationHandler> _returnFromDisableHandlers;
-
-    protected bool _isHovered;
-    protected bool _isClicked;
-    protected bool _wasInteractable;
-
-    protected IUISequence CurrentSequence { get; set; }
-    protected virtual void Awake()
+    [RequireComponent(typeof(RectTransform))]
+    public abstract class BaseUIClickableController : MonoBehaviour,
+        IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
     {
-        InitializeHandlers();
-        StoreInitialValues();
-        _wasInteractable = _canvasGroup.interactable;
-    }
+        private const float FallbackHoverDuration = 0.2f;
+        private const float FallbackClickDuration = 0.1f;
+        private const float FallbackDisableDuration = 0.3f;
 
-    protected virtual void Update()
-    {
-        if (_canvasGroup.interactable != _wasInteractable)
+        [SerializeField] protected CanvasGroup _canvasGroup;
+        [SerializeField] private TempValues startValues = new TempValues();
+        [SerializeField, HideInInspector] private bool hasStartValues;
+
+        public event Action OnHoverStarted;
+        public event Action OnHoverEnded;
+        public event Action OnClickStarted;
+        public event Action OnClickEnded;
+        public event Action OnInteractableChanged;
+
+        public RectTransform RectTransform => transform as RectTransform;
+
+        public abstract AnimationData CurrentHoverAnimationData { get; }
+        public abstract AnimationData CurrentClickAnimationData { get; }
+        public abstract AnimationData CurrentDisableAnimationData { get; }
+        public abstract AnimationData CurrentReturnFromHoverAnimationData { get; }
+        public abstract AnimationData CurrentReturnFromClickAnimationData { get; }
+        public abstract AnimationData CurrentReturnFromDisableAnimationData { get; }
+
+        protected List<IAnimationHandler> _hoverHandlers;
+        protected List<IAnimationHandler> _clickHandlers;
+        protected List<IAnimationHandler> _disableHandlers;
+        protected List<IAnimationHandler> _returnFromHoverHandlers;
+        protected List<IAnimationHandler> _returnFromClickHandlers;
+        protected List<IAnimationHandler> _returnFromDisableHandlers;
+
+        protected bool _isHovered;
+        protected bool _isClicked;
+        protected bool _wasInteractable;
+
+        protected IUISequence CurrentSequence { get; set; }
+        public bool IsAnimated => CurrentSequence != null && CurrentSequence.IsActive() && CurrentSequence.IsPlaying();
+
+        protected virtual void Awake()
         {
+            InitializeHandlers();
+            StoreInitialValues();
+            _wasInteractable = _canvasGroup.interactable;
+        }
+
+        private void InitializeHandlers()
+        {
+            _hoverHandlers = GetHandlers(CurrentHoverAnimationData);
+            _clickHandlers = GetHandlers(CurrentClickAnimationData);
+            _disableHandlers = GetHandlers(CurrentDisableAnimationData);
+            _returnFromHoverHandlers = GetHandlers(CurrentReturnFromHoverAnimationData);
+            _returnFromClickHandlers = GetHandlers(CurrentReturnFromClickAnimationData);
+            _returnFromDisableHandlers = GetHandlers(CurrentReturnFromDisableAnimationData);
+        }
+
+        private static List<IAnimationHandler> GetHandlers(AnimationData data)
+        {
+            return data?.GetHandlers() ?? new List<IAnimationHandler>();
+        }
+
+        private void StoreInitialValues()
+        {
+            if (hasStartValues) return;
+            SaveStartValues();
+        }
+
+        [Button("Save Start Values")]
+        private void SaveStartValues()
+        {
+            RectTransform.RebuildDrivenLayout();
+
+            startValues ??= new TempValues();
+            startValues.SetInitialState(RectTransform, _canvasGroup);
+            hasStartValues = true;
+        }
+
+        /// <summary>
+        /// Sets interactability and plays the matching animation.
+        ///
+        /// Prefer this over writing canvasGroup.interactable directly: the controller has no way of
+        /// noticing an external write without polling every frame, which a screenful of buttons
+        /// cannot afford. If some code really must set the flag itself, follow it with
+        /// <see cref="RefreshInteractableState"/> or add a UIClickableInteractablePoller.
+        /// </summary>
+        public void SetInteractable(bool value)
+        {
+            if (_canvasGroup.interactable == value)
+                return;
+
+            _canvasGroup.interactable = value;
+            RefreshInteractableState();
+        }
+
+        /// <summary>Picks up an interactable change made elsewhere. No-op when nothing changed.</summary>
+        public void RefreshInteractableState()
+        {
+            if (_canvasGroup.interactable == _wasInteractable)
+                return;
+
             _wasInteractable = _canvasGroup.interactable;
             OnInteractableStateChanged();
         }
-    }
 
-    protected abstract void InitializeHandlers();
-    protected abstract float GetHoverDuration();
-    protected abstract float GetClickDuration();
-    protected abstract float GetDisableDuration();
-    protected abstract float GetReturnFromHoverDuration();
-    protected abstract float GetReturnFromClickDuration();
-    protected abstract float GetReturnFromDisableDuration();
-
-    [SerializeReference]
-    private TempValues startValues = null;
-    private void StoreInitialValues()
-    {
-        if (startValues != null) return;
-        SaveStartValues();
-    }
-
-    [Button("Save Start Values")]
-    private void SaveStartValues()
-    {
-        startValues = new TempValues();
-        startValues.SetInitialState(RectTransform, _canvasGroup);
-    }
-    public virtual void OnPointerEnter(PointerEventData eventData)
-    {
-        if (!_canvasGroup.interactable) return;
-
-        _isHovered = true;
-        PlayAnimation(_hoverHandlers, GetHoverDuration(), OnHoverStarted);
-    }
-
-    public virtual void OnPointerExit(PointerEventData eventData)
-    {
-        if (!_canvasGroup.interactable) return;
-
-        _isHovered = false;
-        if (!_isClicked)
+        public virtual void OnPointerEnter(PointerEventData eventData)
         {
-            PlayAnimation(_returnFromHoverHandlers, GetReturnFromHoverDuration(), OnHoverEnded);
+            if (!_canvasGroup.interactable) return;
+
+            _isHovered = true;
+            PlayAnimation(_hoverHandlers, CurrentHoverAnimationData, FallbackHoverDuration, OnHoverStarted);
         }
-    }
 
-    public virtual void OnPointerDown(PointerEventData eventData)
-    {
-        if (!_canvasGroup.interactable) return;
-
-        _isClicked = true;
-        PlayAnimation(_clickHandlers, GetClickDuration(), OnClickStarted);
-    }
-
-    public virtual void OnPointerUp(PointerEventData eventData)
-    {
-        if (!_canvasGroup.interactable) return;
-
-        _isClicked = false;
-        var returnHandlers = _isHovered ? _returnFromClickHandlers : _returnFromHoverHandlers;
-        var returnDuration = _isHovered ? GetReturnFromClickDuration() : GetReturnFromHoverDuration();
-        PlayAnimation(returnHandlers, returnDuration, OnClickEnded);
-    }
-
-    protected virtual void OnInteractableStateChanged()
-    {
-        OnInteractableChanged?.Invoke();
-
-        if (!_canvasGroup.interactable)
+        public virtual void OnPointerExit(PointerEventData eventData)
         {
+            if (!_canvasGroup.interactable) return;
+
             _isHovered = false;
+            if (!_isClicked)
+            {
+                PlayAnimation(_returnFromHoverHandlers, CurrentReturnFromHoverAnimationData, FallbackHoverDuration, OnHoverEnded);
+            }
+        }
+
+        public virtual void OnPointerDown(PointerEventData eventData)
+        {
+            if (!_canvasGroup.interactable) return;
+
+            _isClicked = true;
+            PlayAnimation(_clickHandlers, CurrentClickAnimationData, FallbackClickDuration, OnClickStarted);
+        }
+
+        public virtual void OnPointerUp(PointerEventData eventData)
+        {
+            if (!_canvasGroup.interactable) return;
+
             _isClicked = false;
-            PlayAnimation(_disableHandlers, GetDisableDuration(), null);
+
+            // Still hovered means returning to the hover pose, not all the way to idle.
+            if (_isHovered)
+            {
+                PlayAnimation(_returnFromClickHandlers, CurrentReturnFromClickAnimationData, FallbackClickDuration, OnClickEnded);
+                return;
+            }
+
+            PlayAnimation(_returnFromHoverHandlers, CurrentReturnFromHoverAnimationData, FallbackHoverDuration, OnClickEnded);
         }
-        else
+
+        protected virtual void OnInteractableStateChanged()
         {
-            PlayAnimation(_returnFromDisableHandlers, GetReturnFromDisableDuration(), null);
+            OnInteractableChanged?.Invoke();
+
+            if (!_canvasGroup.interactable)
+            {
+                _isHovered = false;
+                _isClicked = false;
+                PlayAnimation(_disableHandlers, CurrentDisableAnimationData, FallbackDisableDuration, null);
+            }
+            else
+            {
+                PlayAnimation(_returnFromDisableHandlers, CurrentReturnFromDisableAnimationData, FallbackDisableDuration, null);
+            }
         }
-    }
 
-    protected virtual void PlayAnimation(List<IAnimationHandler> handlers, float duration, Action callback)
-    {
-        if (handlers == null || handlers.Count == 0) return;
-        StoreInitialValues();
-        KillAllSequences();
-
-        CurrentSequence = UITween.CreateSequence();
-
-        foreach (var handler in handlers)
+        protected virtual void PlayAnimation(List<IAnimationHandler> handlers, AnimationData data, float fallbackDuration, Action callback)
         {
-            handler?.AddToSequence(CurrentSequence, startValues, RectTransform, _canvasGroup, duration);
+            if (handlers == null || handlers.Count == 0) return;
+            StoreInitialValues();
+
+            // Hovering on and off quickly is the normal case here, so continuing from the current
+            // pose rather than snapping back to the configured start is what keeps it readable.
+            bool interrupted = IsAnimated;
+            CurrentSequence?.Kill();
+            CurrentSequence = UITween.CreateSequence();
+
+            bool startFromCurrent = interrupted && (data == null || !data.RestartFromInitialOnInterrupt);
+            var context = new UIAnimationContext(
+                startValues, RectTransform, _canvasGroup, data?.Duration ?? fallbackDuration, startFromCurrent);
+
+            foreach (var handler in handlers)
+            {
+                handler?.AddToSequence(CurrentSequence, context);
+            }
+
+            CurrentSequence.SetUpdate(true);
+            CurrentSequence.OnComplete(() => callback?.Invoke());
+            CurrentSequence.Play();
         }
 
-        CurrentSequence.SetUpdate(true);
-        CurrentSequence.OnComplete(() => callback?.Invoke());
-        CurrentSequence.Play();
-    }
+        protected void KillAllSequences() => CurrentSequence?.Kill();
 
-    protected void KillAllSequences() => CurrentSequence?.Kill();
+        private void OnDisable()
+        {
+            KillAllSequences();
 
-    private void OnDisable()
-    {
-        KillAllSequences();
-        startValues?.ApplyTo(RectTransform, _canvasGroup);
+            if (hasStartValues)
+                startValues.ApplyTo(RectTransform, _canvasGroup);
+        }
+
+        protected virtual void OnValidate()
+        {
+            if (_canvasGroup == null)
+            {
+                _canvasGroup = GetComponent<CanvasGroup>();
+            }
+        }
     }
 }

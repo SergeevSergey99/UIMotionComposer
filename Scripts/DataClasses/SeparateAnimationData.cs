@@ -1,14 +1,17 @@
 using UIPanelSystem.Inspector;
 
-[System.Serializable, InlineProperty]
-public class SeparateAnimationData
+namespace UIPanelSystem
 {
-    [HideLabel, FoldoutGroup("X Axis")]
-    public AnimationProccesData XAxis = new();
+    [System.Serializable, InlineProperty]
+    public class SeparateAnimationData
+    {
+        [HideLabel, FoldoutGroup("X Axis")]
+        public AnimationProcessData XAxis = new();
 
-    [HideLabel, FoldoutGroup("Y Axis")]
-    public AnimationProccesData YAxis = new();
+        [HideLabel, FoldoutGroup("Y Axis")]
+        public AnimationProcessData YAxis = new();
 
-    [HideLabel, FoldoutGroup("Z Axis")]
-    public AnimationProccesData ZAxis = new();
+        [HideLabel, FoldoutGroup("Z Axis")]
+        public AnimationProcessData ZAxis = new();
+    }
 }

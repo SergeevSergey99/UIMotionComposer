@@ -1,23 +1,29 @@
-﻿public enum AnimationMode
+namespace UIPanelSystem
 {
-    Disabled,
-    Unified,
-    Separate
-}
-public enum SimpleAnimationMode
-{
-    Disabled,
-    Unified
-}
-public enum InitialValueMode
-{
-    Current,
-    Custom,
-    OffsetFromStored
-}
-public enum TargetValueMode
-{
-    StoredInitial,
-    Custom,
-    OffsetFromStored
+    public enum AnimationMode
+    {
+        Disabled,
+        Unified,
+        Separate
+    }
+
+    public enum SimpleAnimationMode
+    {
+        Disabled,
+        Unified
+    }
+
+    public enum InitialValueMode
+    {
+        Current,
+        Custom,
+        OffsetFromStored
+    }
+
+    public enum TargetValueMode
+    {
+        StoredInitial,
+        Custom,
+        OffsetFromStored
+    }
 }
