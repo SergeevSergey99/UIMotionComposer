@@ -5,7 +5,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
-namespace UIPanelSystem.Inspector.Editor
+namespace UIMotionComposer.Inspector.Editor
 {
     /// <summary>
     /// Fallback inspector used when Odin is not installed.
@@ -16,7 +16,7 @@ namespace UIPanelSystem.Inspector.Editor
     /// recognise falls through to Unity's own drawing, so [Range], [Tooltip] and custom drawers on
     /// nested types keep working.
     /// </summary>
-    internal static class UIPanelInspectorGUI
+    internal static class InspectorGUI
     {
         private enum GroupKind
         {
@@ -74,7 +74,7 @@ namespace UIPanelSystem.Inspector.Editor
         private static void DrawButtons(SerializedObject serializedObject)
         {
             UnityEngine.Object target = serializedObject.targetObject;
-            var methods = new List<MethodInfo>(UIPanelInspectorReflection.GetButtonMethods(target.GetType()));
+            var methods = new List<MethodInfo>(InspectorReflection.GetButtonMethods(target.GetType()));
             if (methods.Count == 0)
                 return;
 
@@ -126,7 +126,7 @@ namespace UIPanelSystem.Inspector.Editor
                 members.Add(new MemberEntry
                 {
                     Property = iterator.Copy(),
-                    Field = UIPanelInspectorReflection.FindField(ownerType, iterator.name)
+                    Field = InspectorReflection.FindField(ownerType, iterator.name)
                 });
             }
 
@@ -147,7 +147,7 @@ namespace UIPanelSystem.Inspector.Editor
                 members.Add(new MemberEntry
                 {
                     Property = iterator.Copy(),
-                    Field = ownerType == null ? null : UIPanelInspectorReflection.FindField(ownerType, iterator.name)
+                    Field = ownerType == null ? null : InspectorReflection.FindField(ownerType, iterator.name)
                 });
             }
 
@@ -359,7 +359,7 @@ namespace UIPanelSystem.Inspector.Editor
         private static void DrawNested(MemberEntry member, GUIContent label, string stateKey)
         {
             SerializedProperty property = member.Property;
-            object value = UIPanelInspectorReflection.GetPropertyValue(property);
+            object value = InspectorReflection.GetPropertyValue(property);
             Type valueType = value?.GetType() ?? member.Field?.FieldType;
 
             if (valueType == null)
@@ -478,7 +478,7 @@ namespace UIPanelSystem.Inspector.Editor
         {
             // An unresolvable condition shows the field rather than hiding it: a typo should be
             // visible in the inspector, not silently swallow the data behind it.
-            if (!UIPanelInspectorReflection.TryGetMemberValue(owner, memberName, out object value))
+            if (!InspectorReflection.TryGetMemberValue(owner, memberName, out object value))
                 return true;
 
             if (expectedValue != null)
@@ -506,7 +506,7 @@ namespace UIPanelSystem.Inspector.Editor
                 return false;
 
             string path = expression.Substring(prefix.Length);
-            if (!UIPanelInspectorReflection.TryResolvePath(owner, path, out object value) || !(value is Color resolved))
+            if (!InspectorReflection.TryResolvePath(owner, path, out object value) || !(value is Color resolved))
                 return false;
 
             color = resolved;

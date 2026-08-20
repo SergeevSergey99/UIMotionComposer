@@ -1,11 +1,11 @@
 using System;
 
-namespace UIPanelSystem.Tweening
+namespace UIMotionComposer.Tweening
 {
     /// <summary>
     /// Entry point for every tween the UI panel system creates.
     ///
-    /// When DOTween is installed (UIPANEL_DOTWEEN, set automatically by UIPanelDefineSymbols) the
+    /// When DOTween is installed (UIMOTION_DOTWEEN, set automatically by DefineSymbols) the
     /// calls are forwarded to DOTween so the animations live in the same engine as the rest of the
     /// project -- DOTween.KillAll, DOTween.timeScale and the DOTween inspector all see them. Without
     /// DOTween a small coroutine driven engine takes over and nothing else changes.
@@ -14,7 +14,7 @@ namespace UIPanelSystem.Tweening
     {
         public static IUISequence CreateSequence()
         {
-#if UIPANEL_DOTWEEN
+#if UIMOTION_DOTWEEN
             return new DoTweenSequence();
 #else
             return new UITweenSequence();
@@ -31,7 +31,7 @@ namespace UIPanelSystem.Tweening
             if (onUpdate == null)
                 throw new ArgumentNullException(nameof(onUpdate));
 
-#if UIPANEL_DOTWEEN
+#if UIMOTION_DOTWEEN
             return new DoTweenTweener(from, to, duration, onUpdate);
 #else
             return new UITweenStep(from, to, duration, onUpdate);
@@ -52,7 +52,7 @@ namespace UIPanelSystem.Tweening
         {
             get
             {
-#if UIPANEL_DOTWEEN
+#if UIMOTION_DOTWEEN
                 return true;
 #else
                 return false;

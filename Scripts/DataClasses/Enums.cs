@@ -1,4 +1,4 @@
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     public enum AnimationMode
     {

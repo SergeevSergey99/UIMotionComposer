@@ -1,8 +1,8 @@
-using UIPanelSystem.Inspector;
-using UIPanelSystem.Tweening;
+using UIMotionComposer.Inspector;
+using UIMotionComposer.Tweening;
 using UnityEngine;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     /// <summary>
     /// Shared logic for the Vector3 valued rect properties. Subclasses only say how to read, write

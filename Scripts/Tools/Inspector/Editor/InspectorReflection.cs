@@ -5,14 +5,14 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 
-namespace UIPanelSystem.Inspector.Editor
+namespace UIMotionComposer.Inspector.Editor
 {
     /// <summary>
     /// Reflection helpers the fallback inspector needs to answer two questions a SerializedProperty
     /// cannot: which field declared it, and which object instance owns that field. Conditions like
     /// ShowIf(nameof(IsEnabled)) are evaluated against that instance.
     /// </summary>
-    internal static class UIPanelInspectorReflection
+    internal static class InspectorReflection
     {
         private const BindingFlags MemberFlags =
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy;

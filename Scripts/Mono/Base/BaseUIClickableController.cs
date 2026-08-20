@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using UIPanelSystem.Inspector;
-using UIPanelSystem.Tweening;
+using UIMotionComposer.Inspector;
+using UIMotionComposer.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     [RequireComponent(typeof(RectTransform))]
     public abstract class BaseUIClickableController : MonoBehaviour,

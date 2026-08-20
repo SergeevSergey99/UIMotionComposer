@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using UIPanelSystem.Inspector;
+using UIMotionComposer.Inspector;
 using UnityEngine;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     /// <summary>
     /// Panel that drives other panels alongside its own animation.

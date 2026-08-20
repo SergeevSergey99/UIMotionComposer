@@ -1,7 +1,7 @@
-using UIPanelSystem.Inspector;
+using UIMotionComposer.Inspector;
 using UnityEngine;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     /// <summary>
     /// Watches CanvasGroup.interactable every frame and forwards changes to the clickable controller.
@@ -12,7 +12,7 @@ namespace UIPanelSystem
     /// it, instead of on every button in the project.
     /// </summary>
     [RequireComponent(typeof(BaseUIClickableController))]
-    [AddComponentMenu("UI/UI Panel/Clickable Interactable Poller")]
+    [AddComponentMenu("UI/UI Motion Composer/Clickable Interactable Poller")]
     public sealed class UIClickableInteractablePoller : MonoBehaviour
     {
         [SerializeField, LabelText("Controller")]

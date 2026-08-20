@@ -1,9 +1,14 @@
-# UIPanel
+# UI Motion Composer
 
-UI show/hide and hover/click animations driven by serialized presets.
+Compose UI motion from independent channels — alpha, position, rotation, scale, size and pivot —
+each with its own window on a shared timeline and its own easing or curve. No Animation clips,
+no Animator component, no keyframes to re-author per panel.
 
-Everything lives in the `UIPanelSystem` namespace (`UIPanelSystem.Inspector`,
-`UIPanelSystem.Tweening` for the support layers). The folder is self-contained: drop it into any
+Every value is expressed relative to the panel's own authored pose, so what you compose is
+portable: one asset drives any panel, wherever it happens to sit on screen.
+
+Everything lives in the `UIMotionComposer` namespace (`UIMotionComposer.Inspector`,
+`UIMotionComposer.Tweening` for the support layers). The folder is self-contained: drop it into any
 Unity project and it compiles. Odin Inspector and DOTween are **optional** — when they are present
 the package uses them, when they are not it falls back to its own implementations, and the
 serialized data is identical either way.
@@ -12,15 +17,15 @@ serialized data is identical either way.
 
 | | Plugin installed | Plugin missing |
 |---|---|---|
-| Inspector | `UIPanelOdinBridge` maps the package attributes onto their Sirenix equivalents; Odin draws everything | `UIPanelInspectorGUI` draws the same layout with IMGUI (boxes, tabs, foldouts, conditional fields, buttons) |
+| Inspector | `OdinBridge` maps the package attributes onto their Sirenix equivalents; Odin draws everything | `InspectorGUI` draws the same layout with IMGUI (boxes, tabs, foldouts, conditional fields, buttons) |
 | Tweening | `DoTweenSequence` / `DoTweenTweener` forward to `DOTween.Sequence()` and `DOVirtual.Float` | `UITweenSequence` runs the same timeline from one coroutine on a hidden runner object |
 
 Detection:
 
 * **Odin** publishes `ODIN_INSPECTOR` itself, so the editor code just keys off that symbol.
-* **DOTween** publishes nothing, so `UIPanelDefineSymbols` looks for `DG.Tweening.DOTween` on every
-  domain reload and adds or removes `UIPANEL_DOTWEEN` for the active build target. Force a re-check
-  from **Tools ▸ UI Panel ▸ Refresh Plugin Detection**.
+* **DOTween** publishes nothing, so `DefineSymbols` looks for `DG.Tweening.DOTween` on every
+  domain reload and adds or removes `UIMOTION_DOTWEEN` for the active build target. Force a re-check
+  from **Tools ▸ UI Motion Composer ▸ Refresh Plugin Detection**.
 
 Neither symbol needs to be set by hand, and nothing under `Scripts/` outside `Scripts/Tools/`
 references either plugin.
@@ -77,7 +82,7 @@ rebuild cannot see, capture manually once the panel looks right.
 
 ## Layout attributes
 
-`UIPanelSystem.Inspector` provides `BoxGroup`, `TabGroup`, `FoldoutGroup`, `LabelText`, `HideLabel`,
+`UIMotionComposer.Inspector` provides `BoxGroup`, `TabGroup`, `FoldoutGroup`, `LabelText`, `HideLabel`,
 `InlineProperty`, `ShowIf`, `HideIf`, `MinMaxSlider` and `Button`.
 
 Conditions take a member name (`ShowIf(nameof(IsEnabled))`) or a member plus an expected value

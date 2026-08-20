@@ -1,8 +1,8 @@
-using UIPanelSystem.Inspector;
-using UIPanelSystem.Tweening;
+using UIMotionComposer.Inspector;
+using UIMotionComposer.Tweening;
 using UnityEngine;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     /// <summary>
     /// Vector2 counterpart of <see cref="TransformAnimationHandler"/>, for sizeDelta and pivot.

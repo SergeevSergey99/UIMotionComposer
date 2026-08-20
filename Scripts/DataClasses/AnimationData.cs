@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using UIPanelSystem.Inspector;
+using UIMotionComposer.Inspector;
 using UnityEngine;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     [Serializable]
     public class AnimationData

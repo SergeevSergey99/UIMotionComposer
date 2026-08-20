@@ -1,13 +1,13 @@
-#if UIPANEL_DOTWEEN
+#if UIMOTION_DOTWEEN
 using System;
 using DG.Tweening;
 using UnityEngine;
 
-namespace UIPanelSystem.Tweening
+namespace UIMotionComposer.Tweening
 {
     /// <summary>
-    /// DOTween backed tween. Active only when UIPANEL_DOTWEEN is defined, which
-    /// UIPanelDefineSymbols sets as soon as DOTween is present in the project.
+    /// DOTween backed tween. Active only when UIMOTION_DOTWEEN is defined, which
+    /// DefineSymbols sets as soon as DOTween is present in the project.
     /// </summary>
     internal sealed class DoTweenTweener : IUITweener
     {

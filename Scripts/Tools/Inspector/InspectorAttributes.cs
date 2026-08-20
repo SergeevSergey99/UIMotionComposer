@@ -1,14 +1,14 @@
 using System;
 
-namespace UIPanelSystem.Inspector
+namespace UIMotionComposer.Inspector
 {
     /// <summary>
     /// Inspector attributes owned by the UI panel package.
     ///
     /// They are plain attributes with no dependency on any asset store plugin, so the runtime code
     /// compiles in every project. Two editor-side implementations pick them up:
-    ///   * with Odin installed, UIPanelOdinBridge translates each one into its Sirenix counterpart;
-    ///   * without Odin, UIPanelInspectorGUI draws them itself.
+    ///   * with Odin installed, OdinBridge translates each one into its Sirenix counterpart;
+    ///   * without Odin, InspectorGUI draws them itself.
     /// Anything Odin can do that the fallback cannot (expression driven colors, for instance) is
     /// carried as an optional extra rather than being required to read the inspector.
     /// </summary>

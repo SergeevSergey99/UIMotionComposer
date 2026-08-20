@@ -1,7 +1,7 @@
-using UIPanelSystem.Inspector;
+using UIMotionComposer.Inspector;
 using UnityEngine;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     /// <summary>
     /// Panel driven either by shared preset assets or by animation data authored on the component.

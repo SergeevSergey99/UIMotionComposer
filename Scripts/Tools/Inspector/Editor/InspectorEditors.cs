@@ -1,7 +1,7 @@
 #if UNITY_EDITOR && !ODIN_INSPECTOR
 using UnityEditor;
 
-namespace UIPanelSystem.Inspector.Editor
+namespace UIMotionComposer.Inspector.Editor
 {
     /// <summary>
     /// Hooks the fallback inspector onto the package's own base types only.
@@ -14,21 +14,21 @@ namespace UIPanelSystem.Inspector.Editor
     [CustomEditor(typeof(BaseUIPanelController), true)]
     internal sealed class BaseUIPanelControllerEditor : UnityEditor.Editor
     {
-        public override void OnInspectorGUI() => UIPanelInspectorGUI.DrawInspector(serializedObject);
+        public override void OnInspectorGUI() => InspectorGUI.DrawInspector(serializedObject);
     }
 
     [CanEditMultipleObjects]
     [CustomEditor(typeof(BaseUIClickableController), true)]
     internal sealed class BaseUIClickableControllerEditor : UnityEditor.Editor
     {
-        public override void OnInspectorGUI() => UIPanelInspectorGUI.DrawInspector(serializedObject);
+        public override void OnInspectorGUI() => InspectorGUI.DrawInspector(serializedObject);
     }
 
     [CanEditMultipleObjects]
     [CustomEditor(typeof(UIAnimationPresetSO), true)]
     internal sealed class UIAnimationPresetSOEditor : UnityEditor.Editor
     {
-        public override void OnInspectorGUI() => UIPanelInspectorGUI.DrawInspector(serializedObject);
+        public override void OnInspectorGUI() => InspectorGUI.DrawInspector(serializedObject);
     }
 }
 #endif

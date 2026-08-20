@@ -1,10 +1,10 @@
-#if !UIPANEL_DOTWEEN
+#if !UIMOTION_DOTWEEN
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace UIPanelSystem.Tweening
+namespace UIMotionComposer.Tweening
 {
     /// <summary>
     /// One interpolating float inside a <see cref="UITweenSequence"/>.
@@ -215,7 +215,7 @@ namespace UIPanelSystem.Tweening
                 if (_instance != null)
                     return _instance;
 
-                var host = new GameObject("[UIPanel Tween Runner]")
+                var host = new GameObject("[UI Motion Composer Tween Runner]")
                 {
                     hideFlags = HideFlags.HideAndDontSave
                 };

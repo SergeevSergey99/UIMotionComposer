@@ -3,19 +3,19 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Sirenix.OdinInspector.Editor;
-using UIPanelSystem.Inspector;
+using UIMotionComposer.Inspector;
 
-namespace UIPanelSystem.Inspector.Editor
+namespace UIMotionComposer.Inspector.Editor
 {
     /// <summary>
     /// Translates the package's own inspector attributes into their Odin equivalents.
     ///
     /// This runs only when Odin is installed, and it is the reason the runtime code carries no
     /// Sirenix reference: the attributes stay neutral, and Odin gets told what they mean here.
-    /// The fallback inspector (UIPanelInspectorGUI) is compiled out in this configuration so the
+    /// The fallback inspector (InspectorGUI) is compiled out in this configuration so the
     /// two never fight over the same object.
     /// </summary>
-    internal sealed class UIPanelOdinAttributeProcessor : OdinAttributeProcessor
+    internal sealed class OdinAttributeProcessorBridge : OdinAttributeProcessor
     {
         private static readonly Type[] HandledAttributes =
         {

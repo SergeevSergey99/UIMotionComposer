@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace UIPanelSystem.Tweening
+namespace UIMotionComposer.Tweening
 {
     /// <summary>
     /// A single tween scheduled inside a <see cref="IUISequence"/>.

@@ -1,6 +1,6 @@
 using System;
 
-namespace UIPanelSystem.Tweening
+namespace UIMotionComposer.Tweening
 {
     /// <summary>
     /// Easing set used by the animation data.

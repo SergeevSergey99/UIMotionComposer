@@ -1,7 +1,7 @@
-using UIPanelSystem.Inspector;
+using UIMotionComposer.Inspector;
 using UnityEngine;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     [CreateAssetMenu(fileName = "UIAnimationPreset", menuName = "ScriptableObjects/UI/Animation Preset")]
     public class UIAnimationPresetSO : ScriptableObject

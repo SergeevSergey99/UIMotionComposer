@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     /// <summary>
     /// Everything a handler needs for one play. Passed by reference so adding a knob later does not

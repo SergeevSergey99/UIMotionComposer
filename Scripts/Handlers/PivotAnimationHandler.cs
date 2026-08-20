@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     [System.Serializable]
     public class PivotAnimationHandler : Transform2DAnimationHandler

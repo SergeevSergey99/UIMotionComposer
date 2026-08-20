@@ -6,36 +6,36 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEngine;
 
-namespace UIPanelSystem.Editor
+namespace UIMotionComposer.Editor
 {
     /// <summary>
-    /// Keeps UIPANEL_DOTWEEN in sync with whether DOTween is actually in the project.
+    /// Keeps UIMOTION_DOTWEEN in sync with whether DOTween is actually in the project.
     ///
     /// Odin publishes its own ODIN_INSPECTOR symbol, but DOTween ships no equivalent, so the
     /// package detects it here. The symbol is added when DG.Tweening.DOTween can be found and
-    /// removed when it disappears, which is what lets the same UIPanel folder be dropped into a
+    /// removed when it disappears, which is what lets the same UI Motion Composer folder be dropped into a
     /// project with DOTween and one without and compile in both.
     /// </summary>
     [InitializeOnLoad]
-    internal static class UIPanelDefineSymbols
+    internal static class DefineSymbols
     {
-        private const string DoTweenSymbol = "UIPANEL_DOTWEEN";
+        private const string DoTweenSymbol = "UIMOTION_DOTWEEN";
         private const string DoTweenTypeName = "DG.Tweening.DOTween";
 
-        static UIPanelDefineSymbols()
+        static DefineSymbols()
         {
             // Delayed: during a domain reload the assembly list is still settling, and changing
             // define symbols mid reload triggers a second compile for nothing.
             EditorApplication.delayCall += Sync;
         }
 
-        [MenuItem("Tools/UI Panel/Refresh Plugin Detection")]
+        [MenuItem("Tools/UI Motion Composer/Refresh Plugin Detection")]
         private static void SyncFromMenu()
         {
             Sync();
             Debug.Log(IsDoTweenPresent()
-                ? "[UIPanel] DOTween detected - animations run through DOTween."
-                : "[UIPanel] DOTween not found - animations run through the built-in tween engine.");
+                ? "[UI Motion Composer] DOTween detected - animations run through DOTween."
+                : "[UI Motion Composer] DOTween not found - animations run through the built-in tween engine.");
         }
 
         private static void Sync()

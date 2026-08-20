@@ -1,7 +1,7 @@
-using UIPanelSystem.Tweening;
+using UIMotionComposer.Tweening;
 using UnityEngine;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     /// <summary>
     /// One animated aspect of a panel (alpha, position, scale, ...).

@@ -1,9 +1,9 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
-    public static class UIPanelExtensions
+    public static class MotionExtensions
     {
         public static (float delay, float duration) GetTimelineParams(this Vector2 timeline, float totalDuration)
         {

@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     /// <summary>
     /// The authored pose of a panel, captured once so animations can offset from it or return to it.

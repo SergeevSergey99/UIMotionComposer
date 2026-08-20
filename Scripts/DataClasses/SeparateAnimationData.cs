@@ -1,6 +1,6 @@
-using UIPanelSystem.Inspector;
+using UIMotionComposer.Inspector;
 
-namespace UIPanelSystem
+namespace UIMotionComposer
 {
     [System.Serializable, InlineProperty]
     public class SeparateAnimationData
