@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace UIMotionComposer
 {
-    [CreateAssetMenu(fileName = "UIAnimationPreset", menuName = "ScriptableObjects/UI/Animation Preset")]
+    [CreateAssetMenu(fileName = "UIAnimationPreset", menuName = "UI Motion Composer/Animation Preset")]
     public class UIAnimationPresetSO : ScriptableObject
     {
         [HideLabel] public AnimationData AnimationData;
