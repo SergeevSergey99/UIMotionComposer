@@ -21,7 +21,9 @@ scenes keep working while screens are migrated one at a time.
 1. Add **UI Motion Composer V2/Tween Player** to a UI object.
 2. Press **+ Animation**, give it an ID such as `Show`, `Hide`, `Hover` or `Click`.
 3. Press **+ Add clip** and choose clips from Transform, Rect Transform, Visual, Effects or Utility.
-4. Configure each clip's Delay and Duration. Clips overlap naturally and run on the same timeline.
+4. Move and resize the colored blocks in **Visual Timeline**, or enter exact Delay and Duration
+   values in the clip fields. Blocks overlap naturally; snapping defaults to 0.05 seconds and can
+   be disabled temporarily with Alt.
 5. Press **Capture Initial Pose** once the object and its layout look right. `Initial` and
    `Offset From Initial` keep using this serialized authoring snapshot until it is recaptured.
 6. Scrub **Edit-mode preview** or press **Play preview**; **Restore** returns the object to the pose
@@ -45,6 +47,8 @@ Playback is available from code:
 
 ```csharp
 TweenHandle handle = tweenPlayer.Play(TweenIds.Show);
+handle.OnCompleted(() => Debug.Log("Shown"));
+handle.OnCancelled(() => Debug.Log("Interrupted"));
 handle.Stop();
 
 tweenPlayer.Play("Attention");
@@ -62,6 +66,23 @@ and the returned `TweenHandle`. This keeps runtime sampling identical to the ins
 To reuse a clip stack, create **Assets ▸ Create ▸ UI Motion Composer V2 ▸ Tween Animation** and
 assign it to an animation's **Shared clip asset** field.
 
+### V2 panel lifecycle
+
+Add **UI Motion Composer V2/Tween UI Panel** beside a player to get a ready-made panel lifecycle.
+`TweenUIPanel` activates before Show, disables input while hiding, optionally deactivates after
+Hide, and exposes both UnityEvents and C# callbacks:
+
+```csharp
+tweenPanel.Show(() => OpenFirstField());
+tweenPanel.Hide(() => ReturnToPreviousScreen());
+tweenPanel.InstantShow();
+tweenPanel.InstantHide();
+```
+
+Its public method names match the legacy panel workflow, which keeps caller migration mechanical.
+The custom inspector selects Show/Hide IDs from the attached player and warns about missing or
+infinitely looping transition animations.
+
 ### Migrating legacy content
 
 The migration commands intentionally keep legacy data and components in place:
@@ -69,8 +90,8 @@ The migration commands intentionally keep legacy data and components in place:
 * **Tools ▸ UI Motion Composer V2 ▸ Migrate selected legacy preset assets** creates new `_V2`
   `TweenAnimationAsset` files beside selected legacy presets.
 * **Tools ▸ UI Motion Composer V2 ▸ Migrate selected legacy components** adds a `TweenPlayer`,
-  converts Show/Hide/Hover/Click/Disable/Return animation data inline and imports the controller's
-  serialized `TempValues` as the V2 Initial Pose.
+  converts Show/Hide/Hover/Click/Disable/Return animation data inline, imports the controller's
+  serialized `TempValues` as the V2 Initial Pose and adds a `TweenUIPanel` to panel objects.
 
 Position migration uses Anchor Position 3D, so old Z values and separate-axis timelines are not
 lost. Inspect and preview the result, then remove the old controller only after its callers have
@@ -80,8 +101,8 @@ been switched to `TweenPlayer`.
 
 Open `Examples/V2/UIMotionComposerV2Showcase.unity` and enter Play Mode. The scene contains four
 editable examples: a slide panel, a pop/modal panel, a shake alert and a HUD with a numeric counter
-and filled progress image. Every panel plays `Show` on enable; each Replay button also demonstrates
-the no-code hover/click trigger.
+and filled progress image. Every panel has a `TweenUIPanel`, `Show` and `Hide` animations; each
+Replay button calls the wrapper and also demonstrates the no-code hover/click trigger.
 
 The scene can be regenerated from **Tools ▸ UI Motion Composer V2 ▸ Rebuild V2 showcase scene** and
 validated with the adjacent **Validate V2 showcase scene** command.

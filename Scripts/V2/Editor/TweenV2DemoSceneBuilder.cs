@@ -96,11 +96,13 @@ namespace UIMotionComposer.V2.Editor
             Require(missingScripts == 0, $"Scene contains {missingScripts} missing script reference(s).");
 
             TweenPlayer[] players = all.SelectMany(item => item.GetComponents<TweenPlayer>()).ToArray();
+            TweenUIPanel[] panels = all.SelectMany(item => item.GetComponents<TweenUIPanel>()).ToArray();
             TweenUITrigger[] triggers = all.SelectMany(item => item.GetComponents<TweenUITrigger>()).ToArray();
             Button[] buttons = all.SelectMany(item => item.GetComponents<Button>()).ToArray();
             Require(players.Length == 8, $"Expected 8 TweenPlayers (4 panels + 4 buttons), got {players.Length}.");
             Require(players.All(player => player.HasCapturedInitialValues && player.CapturedInitialValueCount > 0),
                 "Every TweenPlayer must have a serialized Initial Values snapshot.");
+            Require(panels.Length == 4, $"Expected 4 TweenUIPanel wrappers, got {panels.Length}.");
             Require(triggers.Length == 4, $"Expected 4 UI event triggers, got {triggers.Length}.");
             Require(buttons.Length == 4, $"Expected 4 replay buttons, got {buttons.Length}.");
             Require(buttons.All(button => button.onClick.GetPersistentEventCount() == 1),
@@ -112,7 +114,7 @@ namespace UIMotionComposer.V2.Editor
             CheckPanel(all, "04 HUD Progress Panel", typeof(FadeTweenClip), typeof(AnchorPositionTweenClip),
                 typeof(TextCounterTweenClip), typeof(FillAmountTweenClip));
 
-            Debug.Log("[UI Motion Composer] V2 showcase validation passed: 4 panels, 8 players, 4 interactive replay buttons, no missing scripts.");
+            Debug.Log("[UI Motion Composer] V2 showcase validation passed: 4 TweenUIPanels, 8 players, 4 interactive replay buttons, no missing scripts.");
         }
 
         public static void ValidateFromCli()
@@ -126,8 +128,11 @@ namespace UIMotionComposer.V2.Editor
             Require(gameObject != null, "Missing panel: " + name);
             TweenPlayer player = gameObject.GetComponent<TweenPlayer>();
             Require(player != null, name + " has no TweenPlayer.");
+            TweenUIPanel panel = gameObject.GetComponent<TweenUIPanel>();
+            Require(panel != null, name + " has no TweenUIPanel wrapper.");
             TweenAnimation animation = player.FindAnimation(TweenIds.Show);
             Require(animation != null, name + " has no Show animation.");
+            Require(player.FindAnimation(TweenIds.Hide) != null, name + " has no Hide animation.");
             Require(player.PlayOnEnableAnimations.Contains(TweenIds.Show), name + " is not configured to play Show on enable.");
 
             foreach (System.Type expected in expectedClips)
@@ -177,8 +182,10 @@ namespace UIMotionComposer.V2.Editor
                 Ease = UIEase.OutCubic
             });
             player.AnimationDefinitions.Add(show);
+            player.AnimationDefinitions.Add(NewHideAnimation(panel.CanvasGroup));
             player.PlayOnEnableAnimations.Add(TweenIds.Show);
-            CreateReplayButton(panel.Body, player, new Vector2(0f, -174f), Blue);
+            TweenUIPanel wrapper = AddPanelWrapper(panel.Root.gameObject);
+            CreateReplayButton(panel.Body, wrapper, new Vector2(0f, -174f), Blue);
         }
 
         private static void CreatePopPanel(Transform parent, Vector2 position)
@@ -218,8 +225,10 @@ namespace UIMotionComposer.V2.Editor
                 Elasticity = 0.7f
             });
             player.AnimationDefinitions.Add(show);
+            player.AnimationDefinitions.Add(NewHideAnimation(panel.CanvasGroup));
             player.PlayOnEnableAnimations.Add(TweenIds.Show);
-            CreateReplayButton(panel.Body, player, new Vector2(0f, -174f), Purple);
+            TweenUIPanel wrapper = AddPanelWrapper(panel.Root.gameObject);
+            CreateReplayButton(panel.Body, wrapper, new Vector2(0f, -174f), Purple);
         }
 
         private static void CreateAlertPanel(Transform parent, Vector2 position)
@@ -259,8 +268,10 @@ namespace UIMotionComposer.V2.Editor
                 Seed = 2026
             });
             player.AnimationDefinitions.Add(show);
+            player.AnimationDefinitions.Add(NewHideAnimation(panel.CanvasGroup));
             player.PlayOnEnableAnimations.Add(TweenIds.Show);
-            CreateReplayButton(panel.Body, player, new Vector2(0f, -174f), Coral);
+            TweenUIPanel wrapper = AddPanelWrapper(panel.Root.gameObject);
+            CreateReplayButton(panel.Body, wrapper, new Vector2(0f, -174f), Coral);
         }
 
         private static void CreateHudPanel(Transform parent, Vector2 position)
@@ -329,8 +340,10 @@ namespace UIMotionComposer.V2.Editor
                 Ease = UIEase.OutCubic
             });
             player.AnimationDefinitions.Add(show);
+            player.AnimationDefinitions.Add(NewHideAnimation(canvasGroup));
             player.PlayOnEnableAnimations.Add(TweenIds.Show);
-            CreateReplayButton(root.transform, player, new Vector2(545f, -32f), Green, new Vector2(170f, 42f));
+            TweenUIPanel wrapper = AddPanelWrapper(root.gameObject);
+            CreateReplayButton(root.transform, wrapper, new Vector2(545f, -32f), Green, new Vector2(170f, 42f));
         }
 
         private static TweenAnimation NewShowAnimation()
@@ -349,6 +362,37 @@ namespace UIMotionComposer.V2.Editor
                 },
                 Clips = new List<BaseTweenClip>()
             };
+        }
+
+        private static TweenAnimation NewHideAnimation(CanvasGroup canvasGroup)
+        {
+            return new TweenAnimation
+            {
+                Id = TweenIds.Hide,
+                Playback = new TweenPlaybackSettings
+                {
+                    UnscaledTime = true,
+                    BlendMode = TweenBlendMode.Override,
+                    KillBehavior = TweenKillBehavior.Cancel,
+                    AllowSelfOverride = true,
+                    LoopMode = TweenLoopMode.None,
+                    LoopCount = 1
+                },
+                Clips = new List<BaseTweenClip>
+                {
+                    Fade(canvasGroup, 1f, 0f, 0f, 0.24f)
+                }
+            };
+        }
+
+        private static TweenUIPanel AddPanelWrapper(GameObject gameObject)
+        {
+            TweenUIPanel panel = gameObject.AddComponent<TweenUIPanel>();
+            panel.HideOnAwake = false;
+            panel.DeactivateWhenHidden = true;
+            panel.ShowAnimationId = TweenIds.Show;
+            panel.HideAnimationId = TweenIds.Hide;
+            return panel;
         }
 
         private static FadeTweenClip Fade(CanvasGroup target, float from, float to, float delay, float duration)
@@ -398,7 +442,7 @@ namespace UIMotionComposer.V2.Editor
                 Vector2.zero, new Vector2(125f, 34f), FontStyle.Bold);
         }
 
-        private static void CreateReplayButton(Transform parent, TweenPlayer targetPlayer, Vector2 position,
+        private static void CreateReplayButton(Transform parent, TweenUIPanel targetPanel, Vector2 position,
             Color accent, Vector2? size = null)
         {
             Vector2 buttonSize = size ?? new Vector2(250f, 52f);
@@ -414,7 +458,7 @@ namespace UIMotionComposer.V2.Editor
 
             CreateText("Label", image.transform, "REPLAY ANIMATION", 15, Color.white,
                 TextAnchor.MiddleCenter, Vector2.zero, buttonSize, FontStyle.Bold);
-            UnityEventTools.AddStringPersistentListener(button.onClick, targetPlayer.RestartAnimation, TweenIds.Show);
+            UnityEventTools.AddPersistentListener(button.onClick, new UnityEngine.Events.UnityAction(targetPanel.Show));
 
             TweenPlayer buttonPlayer = image.gameObject.AddComponent<TweenPlayer>();
             buttonPlayer.AnimationDefinitions.Add(new TweenAnimation

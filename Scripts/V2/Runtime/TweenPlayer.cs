@@ -384,6 +384,10 @@ namespace UIMotionComposer.V2
     {
         internal static readonly TweenHandle Invalid = new TweenHandle(null);
         private readonly TweenPlayback _playback;
+        private Action _completedCallbacks;
+        private Action _cancelledCallbacks;
+        private bool _completed;
+        private bool _cancelled;
 
         internal TweenHandle(TweenPlayback playback)
         {
@@ -394,6 +398,34 @@ namespace UIMotionComposer.V2
         public bool IsActive => _playback != null && _playback.IsActive;
         public bool IsPaused => _playback != null && _playback.IsPaused;
         public float NormalizedTime => _playback?.NormalizedTime ?? 0f;
+        public bool WasCompleted => _completed;
+        public bool WasCancelled => _cancelled;
+
+        /// <summary>Registers a completion callback and returns this handle for fluent setup.</summary>
+        public TweenHandle OnCompleted(Action callback)
+        {
+            if (callback == null || !IsValid)
+                return this;
+
+            if (_completed)
+                callback.Invoke();
+            else if (!_cancelled)
+                _completedCallbacks += callback;
+            return this;
+        }
+
+        /// <summary>Registers a cancellation callback and returns this handle for fluent setup.</summary>
+        public TweenHandle OnCancelled(Action callback)
+        {
+            if (callback == null || !IsValid)
+                return this;
+
+            if (_cancelled)
+                callback.Invoke();
+            else if (!_completed)
+                _cancelledCallbacks += callback;
+            return this;
+        }
 
         public void Pause()
         {
@@ -409,6 +441,30 @@ namespace UIMotionComposer.V2
 
         public void Stop() => _playback?.Stop(false);
         public void Complete() => _playback?.Stop(true);
+
+        internal void NotifyCompleted()
+        {
+            if (_completed || _cancelled)
+                return;
+
+            _completed = true;
+            Action callbacks = _completedCallbacks;
+            _completedCallbacks = null;
+            _cancelledCallbacks = null;
+            callbacks?.Invoke();
+        }
+
+        internal void NotifyCancelled()
+        {
+            if (_completed || _cancelled)
+                return;
+
+            _cancelled = true;
+            Action callbacks = _cancelledCallbacks;
+            _completedCallbacks = null;
+            _cancelledCallbacks = null;
+            callbacks?.Invoke();
+        }
     }
 
     internal sealed class TweenPlayback
@@ -586,7 +642,14 @@ namespace UIMotionComposer.V2
             }
 
             IsActive = false;
-            Player.NotifyCancelled(Animation);
+            try
+            {
+                Player.NotifyCancelled(Animation);
+            }
+            finally
+            {
+                Handle.NotifyCancelled();
+            }
         }
 
         private bool TryStartNextPass()
@@ -635,7 +698,14 @@ namespace UIMotionComposer.V2
                 return;
 
             IsActive = false;
-            Player.NotifyCompleted(Animation);
+            try
+            {
+                Player.NotifyCompleted(Animation);
+            }
+            finally
+            {
+                Handle.NotifyCompleted();
+            }
         }
     }
 

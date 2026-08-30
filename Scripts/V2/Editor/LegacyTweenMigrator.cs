@@ -68,6 +68,15 @@ namespace UIMotionComposer.V2.Editor
                 {
                     AddAnimation(player, TweenIds.Show, panel.CurrentShowAnimationData);
                     AddAnimation(player, TweenIds.Hide, panel.CurrentHideAnimationData);
+
+                    TweenUIPanel panelWrapper = gameObject.GetComponent<TweenUIPanel>();
+                    if (panelWrapper == null)
+                        panelWrapper = Undo.AddComponent<TweenUIPanel>(gameObject);
+                    Undo.RecordObject(panelWrapper, "Add UI Motion Composer V2 panel wrapper");
+                    panelWrapper.HideOnAwake = false;
+                    panelWrapper.ShowAnimationId = TweenIds.Show;
+                    panelWrapper.HideAnimationId = TweenIds.Hide;
+                    EditorUtility.SetDirty(panelWrapper);
                 }
 
                 if (clickable != null)
@@ -94,7 +103,7 @@ namespace UIMotionComposer.V2.Editor
                 migrated++;
             }
 
-            Debug.Log($"[UI Motion Composer] Added/updated TweenPlayer V2 on {migrated} selected object(s). Legacy components were kept for safe comparison.");
+            Debug.Log($"[UI Motion Composer] Added/updated TweenPlayer V2 on {migrated} selected object(s). Panel objects also received TweenUIPanel wrappers; legacy components were kept for safe comparison.");
         }
 
         [MenuItem(MenuRoot + "Migrate selected legacy components", true)]

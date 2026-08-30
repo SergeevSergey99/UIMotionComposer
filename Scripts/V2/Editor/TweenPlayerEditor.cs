@@ -178,12 +178,22 @@ namespace UIMotionComposer.V2.Editor
                 EditorGUILayout.Space(4f);
                 if (asset.objectReferenceValue != null)
                 {
-                    EditorGUILayout.HelpBox("Clips are read from the shared asset. Select it to edit the clip stack.", MessageType.None);
+                    var sharedAsset = (TweenAnimationAsset)asset.objectReferenceValue;
+                    SerializedObject assetSource = GetAssetSource(sharedAsset);
+                    SerializedProperty sharedClips = assetSource?.FindProperty("Clips");
+                    if (sharedClips != null)
+                    {
+                        TweenTimelineEditor.Draw(assetSource, sharedClips, _previewTime,
+                            normalized => ScrubTimeline(id.stringValue, normalized));
+                    }
+                    EditorGUILayout.HelpBox("Timing comes from the shared asset. Dragging its timeline edits that asset for every player using it.", MessageType.None);
                     if (GUILayout.Button("Select shared animation asset"))
                         Selection.activeObject = asset.objectReferenceValue;
                 }
                 else
                 {
+                    TweenTimelineEditor.Draw(serializedObject, clips, _previewTime,
+                        normalized => ScrubTimeline(id.stringValue, normalized));
                     TweenClipEditorUtility.DrawClipList(serializedObject, clips, "Clips");
                 }
 
@@ -341,6 +351,16 @@ namespace UIMotionComposer.V2.Editor
             }
 
             Player.SamplePreparedPreview(normalizedTime);
+        }
+
+        private void ScrubTimeline(string animationId, float normalizedTime)
+        {
+            serializedObject.ApplyModifiedProperties();
+            _previewTime = Mathf.Clamp01(normalizedTime);
+            _previewPlaying = false;
+            SamplePreview(animationId, _previewTime);
+            Repaint();
+            SceneView.RepaintAll();
         }
 
         private void RefreshPreviewIfAuthoringChanged()
@@ -542,7 +562,9 @@ namespace UIMotionComposer.V2.Editor
         {
             serializedObject.Update();
             EditorGUILayout.HelpBox("Reusable clip stack. Timing is relative to the beginning of any animation that references this asset.", MessageType.Info);
-            TweenClipEditorUtility.DrawClipList(serializedObject, serializedObject.FindProperty("Clips"), "Shared clips");
+            SerializedProperty clips = serializedObject.FindProperty("Clips");
+            TweenTimelineEditor.Draw(serializedObject, clips);
+            TweenClipEditorUtility.DrawClipList(serializedObject, clips, "Shared clips");
             serializedObject.ApplyModifiedProperties();
         }
     }
