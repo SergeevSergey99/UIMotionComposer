@@ -23,7 +23,9 @@ namespace UIMotionComposer.V2.Editor
         private float _previewStartedFrom;
         private bool _previewActive;
         private string _previewAnimationId;
-        private string _previewFingerprint;
+        private int _previewFingerprint;
+        private SerializedObject _previewAssetSource;
+        private readonly HashSet<UnityEngine.Object> _previewUndoTargets = new HashSet<UnityEngine.Object>();
 
         private TweenPlayer Player => (TweenPlayer)target;
 
@@ -47,6 +49,7 @@ namespace UIMotionComposer.V2.Editor
             AssemblyReloadEvents.beforeAssemblyReload -= StopPreview;
             Undo.undoRedoPerformed -= OnUndoRedo;
             StopPreview();
+            DisposeAssetSource();
         }
 
         public override void OnInspectorGUI()
@@ -307,7 +310,8 @@ namespace UIMotionComposer.V2.Editor
                 Player.StopPreview();
             _previewActive = false;
             _previewAnimationId = null;
-            _previewFingerprint = null;
+            _previewFingerprint = 0;
+            _previewUndoTargets.Clear();
             SceneView.RepaintAll();
         }
 
@@ -320,7 +324,7 @@ namespace UIMotionComposer.V2.Editor
                 if (affectedTargets.Length == 0)
                     return;
 
-                Undo.RegisterCompleteObjectUndo(affectedTargets, "Preview UI Motion animation");
+                RegisterPreviewUndo(affectedTargets);
                 _previewActive = true;
                 _previewAnimationId = animationId;
                 _previewFingerprint = AuthoringFingerprint(animationId);
@@ -334,24 +338,114 @@ namespace UIMotionComposer.V2.Editor
             if (!_previewActive || target == null)
                 return;
 
-            string fingerprint = AuthoringFingerprint(_previewAnimationId);
-            if (string.Equals(_previewFingerprint, fingerprint, StringComparison.Ordinal))
+            if (AuthoringFingerprint(_previewAnimationId) == _previewFingerprint)
                 return;
 
+            RebuildPreview(_previewTime);
+        }
+
+        /// <summary>
+        /// Restores the pose, recaptures against the edited clips and resamples at the same point.
+        /// Deliberately not routed through <see cref="StopPreview"/>: the session continues, so the
+        /// Undo entry taken when it began still describes the pose to return to.
+        /// </summary>
+        private void RebuildPreview(float normalizedTime)
+        {
             string animationId = _previewAnimationId;
-            float normalizedTime = _previewTime;
-            StopPreview();
-            SamplePreview(animationId, normalizedTime);
+
+            // PreparePreview restores the captured pose before recapturing, so From/To resolved as
+            // Current read the authored pose rather than wherever the last sample left the object.
+            UnityEngine.Object[] affectedTargets = Player.PreparePreview(animationId);
+            if (affectedTargets.Length == 0)
+            {
+                StopPreview();
+                return;
+            }
+
+            // Retargeting a clip mid-session can pull in an object the session never recorded.
+            RegisterPreviewUndo(affectedTargets);
+            _previewFingerprint = AuthoringFingerprint(animationId);
+            Player.SamplePreparedPreview(normalizedTime);
             SceneView.RepaintAll();
         }
 
-        private string AuthoringFingerprint(string animationId)
+        private void RegisterPreviewUndo(UnityEngine.Object[] affectedTargets)
         {
-            string fingerprint = EditorJsonUtility.ToJson(Player);
+            UnityEngine.Object[] pending = affectedTargets
+                .Where(candidate => candidate != null && !_previewUndoTargets.Contains(candidate))
+                .ToArray();
+
+            if (pending.Length == 0)
+                return;
+
+            Undo.RegisterCompleteObjectUndo(pending, "Preview UI Motion animation");
+            foreach (UnityEngine.Object candidate in pending)
+                _previewUndoTargets.Add(candidate);
+        }
+
+        /// <summary>
+        /// Hash of everything one preview sample reads: the selected animation's clips, its playback
+        /// settings, and the shared asset's clips when one is assigned.
+        ///
+        /// Walks the SerializedProperty tree rather than serialising to JSON, because JsonUtility
+        /// does not round-trip [SerializeReference] — a JSON fingerprint never sees a clip edit,
+        /// which is the one change this refresh exists to catch.
+        /// </summary>
+        private int AuthoringFingerprint(string animationId)
+        {
+            int hash = 17;
+
+            int index = IndexOfAnimation(animationId);
+            if (index >= 0)
+                hash = TweenAuthoringFingerprint.Combine(hash,
+                    TweenAuthoringFingerprint.Of(_animations.GetArrayElementAtIndex(index)));
+
             TweenAnimation animation = Player.FindAnimation(animationId);
-            if (animation?.Asset != null)
-                fingerprint += EditorJsonUtility.ToJson(animation.Asset);
-            return fingerprint;
+            SerializedObject assetSource = GetAssetSource(animation?.Asset);
+            if (assetSource != null)
+                hash = TweenAuthoringFingerprint.Combine(hash,
+                    TweenAuthoringFingerprint.Of(assetSource.FindProperty("Clips")));
+
+            return hash;
+        }
+
+        private int IndexOfAnimation(string animationId)
+        {
+            if (_animations == null)
+                return -1;
+
+            for (int i = 0; i < _animations.arraySize; i++)
+            {
+                string id = _animations.GetArrayElementAtIndex(i).FindPropertyRelative("Id").stringValue;
+                if (string.Equals(id, animationId, StringComparison.Ordinal))
+                    return i;
+            }
+
+            return -1;
+        }
+
+        private SerializedObject GetAssetSource(TweenAnimationAsset asset)
+        {
+            if (asset == null)
+            {
+                DisposeAssetSource();
+                return null;
+            }
+
+            if (_previewAssetSource == null || _previewAssetSource.targetObject != asset)
+            {
+                DisposeAssetSource();
+                _previewAssetSource = new SerializedObject(asset);
+            }
+
+            _previewAssetSource.Update();
+            return _previewAssetSource;
+        }
+
+        private void DisposeAssetSource()
+        {
+            _previewAssetSource?.Dispose();
+            _previewAssetSource = null;
         }
 
         private void OnEditorFocusChanged(bool hasFocus)
@@ -815,6 +909,117 @@ namespace UIMotionComposer.V2.Editor
         private static string Nicify(string typeName)
         {
             return ObjectNames.NicifyVariableName(typeName.Replace("TweenClip", string.Empty));
+        }
+    }
+
+    /// <summary>
+    /// Content hash of a SerializedProperty subtree.
+    ///
+    /// Deliberately not EditorJsonUtility.ToJson: JsonUtility does not round-trip
+    /// [SerializeReference], so a JSON fingerprint is blind to every clip edit -- which is the one
+    /// change the preview refresh exists to catch. TweenV2Validation covers that case.
+    /// </summary>
+    internal static class TweenAuthoringFingerprint
+    {
+        /// <summary>
+        /// Folds every leaf under <paramref name="root"/> into one hash. Uses Next rather than
+        /// NextVisible so a collapsed foldout does not hide its fields from the hash.
+        /// </summary>
+        public static int Of(SerializedProperty root)
+        {
+            if (root == null)
+                return 0;
+
+            int hash = 17;
+            SerializedProperty iterator = root.Copy();
+            SerializedProperty end = root.GetEndProperty();
+
+            while (iterator.Next(true) && !SerializedProperty.EqualContents(iterator, end))
+            {
+                hash = Combine(hash, iterator.propertyPath.GetHashCode());
+                hash = Combine(hash, HashValue(iterator));
+            }
+
+            return hash;
+        }
+
+        public static int Combine(int hash, int value)
+        {
+            unchecked
+            {
+                return hash * 31 + value;
+            }
+        }
+
+        private static int HashValue(SerializedProperty property)
+        {
+            switch (property.propertyType)
+            {
+                case SerializedPropertyType.Integer:
+                case SerializedPropertyType.LayerMask:
+                case SerializedPropertyType.Character:
+                case SerializedPropertyType.ArraySize:
+                    return property.intValue;
+                case SerializedPropertyType.Boolean:
+                    return property.boolValue ? 1 : 0;
+                case SerializedPropertyType.Float:
+                    return property.floatValue.GetHashCode();
+                case SerializedPropertyType.String:
+                    return property.stringValue?.GetHashCode() ?? 0;
+                case SerializedPropertyType.Color:
+                    return property.colorValue.GetHashCode();
+                case SerializedPropertyType.ObjectReference:
+                    return property.objectReferenceInstanceIDValue;
+                case SerializedPropertyType.Enum:
+                    return property.enumValueIndex;
+                case SerializedPropertyType.Vector2:
+                    return property.vector2Value.GetHashCode();
+                case SerializedPropertyType.Vector3:
+                    return property.vector3Value.GetHashCode();
+                case SerializedPropertyType.Vector4:
+                    return property.vector4Value.GetHashCode();
+                case SerializedPropertyType.Quaternion:
+                    return property.quaternionValue.GetHashCode();
+                case SerializedPropertyType.Vector2Int:
+                    return property.vector2IntValue.GetHashCode();
+                case SerializedPropertyType.Vector3Int:
+                    return property.vector3IntValue.GetHashCode();
+                case SerializedPropertyType.Rect:
+                    return property.rectValue.GetHashCode();
+                case SerializedPropertyType.Bounds:
+                    return property.boundsValue.GetHashCode();
+                case SerializedPropertyType.AnimationCurve:
+                    return HashCurve(property.animationCurveValue);
+
+                // Swapping a clip for another type keeps the same property path, so the type name
+                // is the only thing that tells them apart.
+                case SerializedPropertyType.ManagedReference:
+                    return property.managedReferenceFullTypename?.GetHashCode() ?? 0;
+
+                // Generic containers carry nothing of their own; their leaves are visited next.
+                default:
+                    return 0;
+            }
+        }
+
+        private static int HashCurve(AnimationCurve curve)
+        {
+            if (curve == null)
+                return 0;
+
+            int hash = 17;
+            Keyframe[] keys = curve.keys;
+            hash = Combine(hash, keys.Length);
+
+            for (int i = 0; i < keys.Length; i++)
+            {
+                hash = Combine(hash, keys[i].time.GetHashCode());
+                hash = Combine(hash, keys[i].value.GetHashCode());
+                hash = Combine(hash, keys[i].inTangent.GetHashCode());
+                hash = Combine(hash, keys[i].outTangent.GetHashCode());
+            }
+
+            return hash;
         }
     }
 }

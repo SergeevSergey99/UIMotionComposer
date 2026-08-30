@@ -115,6 +115,8 @@ namespace UIMotionComposer.V2.Editor
                 Require(Mathf.Abs(migrated[0].Delay - 0.5f) < 0.001f, "Legacy delay migration failed.");
                 Require(Mathf.Abs(migrated[0].Duration - 1f) < 0.001f, "Legacy duration migration failed.");
 
+                ValidateAuthoringFingerprint(player);
+
                 Debug.Log("[UI Motion Composer] V2 smoke tests passed.");
             }
             finally
@@ -124,6 +126,70 @@ namespace UIMotionComposer.V2.Editor
                 if (animationAsset != null)
                     UnityEngine.Object.DestroyImmediate(animationAsset);
             }
+        }
+
+        /// <summary>
+        /// The preview refresh only fires when the authoring fingerprint changes, so a fingerprint
+        /// blind to clip edits silently reinstates the stale-preview bug. EditorJsonUtility.ToJson
+        /// is exactly that blind — it does not round-trip [SerializeReference] — which is why this
+        /// asserts against the SerializedProperty walk and pins the JSON approach as unusable.
+        /// </summary>
+        private static void ValidateAuthoringFingerprint(TweenPlayer player)
+        {
+            player.AnimationDefinitions.Clear();
+            var clip = new AnchorPositionTweenClip
+            {
+                ToMode = TweenEndpointMode.Custom,
+                ToValue = new Vector2(10f, 0f),
+                Duration = 1f
+            };
+            player.AnimationDefinitions.Add(new TweenAnimation
+            {
+                Id = "Fingerprint",
+                Clips = { clip }
+            });
+
+            using (var source = new SerializedObject(player))
+            {
+                // Re-read every time: a SerializedProperty grabbed before Update can go stale once
+                // the managed reference behind it is replaced.
+                int Fingerprint()
+                {
+                    source.Update();
+                    return TweenAuthoringFingerprint.Of(
+                        source.FindProperty("animations").GetArrayElementAtIndex(0));
+                }
+
+                int beforeValueEdit = Fingerprint();
+                string jsonBefore = EditorJsonUtility.ToJson(player);
+
+                clip.ToValue = new Vector2(400f, 0f);
+
+                Require(Fingerprint() != beforeValueEdit,
+                    "Authoring fingerprint did not change after editing a [SerializeReference] clip. " +
+                    "Preview would keep sampling stale From/To values.");
+
+                if (EditorJsonUtility.ToJson(player) == jsonBefore)
+                {
+                    Debug.Log("[UI Motion Composer] Confirmed: EditorJsonUtility.ToJson is blind to " +
+                              "clip edits. Do not use it for the preview fingerprint.");
+                }
+
+                // A clip swapped for another type keeps its property path; only the type name moves.
+                int beforeTypeSwap = Fingerprint();
+                player.AnimationDefinitions[0].Clips[0] = new ScaleTweenClip
+                {
+                    ToMode = TweenEndpointMode.Custom,
+                    ToValue = new Vector3(400f, 0f, 0f),
+                    Duration = 1f
+                };
+
+                Require(Fingerprint() != beforeTypeSwap,
+                    "Authoring fingerprint did not change after swapping the clip type.");
+            }
+
+            player.AnimationDefinitions.Clear();
+            player.InvalidateAuthoringCache();
         }
 
         private static void Require(bool condition, string message)
