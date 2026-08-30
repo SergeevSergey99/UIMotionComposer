@@ -47,6 +47,9 @@ namespace UIMotionComposer.V2
         private bool _showRequestedBeforeAwake;
         private bool _initialized;
 
+        /// <summary>Direction of a transition cut short by deactivation; Hidden means "none pending".</summary>
+        private TweenPanelState _interruptedFrom = TweenPanelState.Hidden;
+
         public TweenPlayer Player => player;
         public CanvasGroup CanvasGroup => canvasGroup;
         public TweenPanelState State { get; private set; } = TweenPanelState.Visible;
@@ -146,8 +149,14 @@ namespace UIMotionComposer.V2
             ResolveReferences();
             if (!gameObject.activeSelf)
             {
-                State = TweenPanelState.Hidden;
-                callback?.Invoke();
+                // Nothing to animate, but callers still get the same started/completed pair they
+                // would get from a real transition.
+                int inactiveVersion = BeginTransition();
+                State = TweenPanelState.Hiding;
+                SetInteraction(false);
+                onHideStarted?.Invoke();
+                HideStarted?.Invoke();
+                CompleteHide(inactiveVersion, callback);
                 return;
             }
 
@@ -320,8 +329,27 @@ namespace UIMotionComposer.V2
             ++_transitionVersion;
             _transition.Stop();
             _transition = TweenHandle.Invalid;
+            _interruptedFrom = State;
             State = TweenPanelState.Hidden;
             SetInteraction(false);
+        }
+
+        /// <summary>
+        /// Settles the state left behind when a transition was cut short by the object being
+        /// deactivated. Without this a panel interrupted mid-Show comes back marked Hidden with
+        /// input switched off — on screen but dead. The interrupted direction decides the outcome;
+        /// neither case animates, so call <see cref="Show()"/> or <see cref="Hide()"/> for that.
+        /// </summary>
+        private void OnEnable()
+        {
+            if (!_initialized || _interruptedFrom == TweenPanelState.Hidden)
+                return;
+
+            bool wasShowing = _interruptedFrom == TweenPanelState.Showing;
+            _interruptedFrom = TweenPanelState.Hidden;
+
+            State = wasShowing ? TweenPanelState.Visible : TweenPanelState.Hidden;
+            SetInteraction(wasShowing);
         }
 
         private void OnDestroy()

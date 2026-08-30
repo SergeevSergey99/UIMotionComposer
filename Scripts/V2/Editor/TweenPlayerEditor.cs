@@ -26,6 +26,7 @@ namespace UIMotionComposer.V2.Editor
         private int _previewFingerprint;
         private SerializedObject _previewAssetSource;
         private TweenPreviewAnimationMode _previewAnimationMode;
+        private bool _previewBlockedWarned;
 
         private TweenPlayer Player => (TweenPlayer)target;
 
@@ -340,9 +341,18 @@ namespace UIMotionComposer.V2.Editor
                 if (!_previewAnimationMode.TryStart())
                 {
                     Player.StopPreview();
-                    Debug.LogWarning("[UI Motion Composer] Preview cannot start while another Animation Mode driver is active.", Player);
+
+                    // Once per blocked stretch: every scrub and every Play press comes back here
+                    // while the Animation window stays open.
+                    if (!_previewBlockedWarned)
+                    {
+                        _previewBlockedWarned = true;
+                        Debug.LogWarning("[UI Motion Composer] Preview cannot start while another Animation Mode driver is active.", Player);
+                    }
                     return;
                 }
+
+                _previewBlockedWarned = false;
 
                 _previewAnimationMode.RegisterTargets(affectedTargets);
                 _previewActive = true;

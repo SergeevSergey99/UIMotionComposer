@@ -36,6 +36,9 @@ namespace UIMotionComposer
         public bool HasStoredStartValues => hasStartValues;
         public TempValues StoredStartValues => startValues;
 
+        /// <summary>Whether this panel hides itself on the first initialisation. Read by the V2 migrator.</summary>
+        public bool DisableOnStart => disableOnStart;
+
         /// <summary>The data driving the show animation, or null when the panel has none.</summary>
         public abstract AnimationData CurrentShowAnimationData { get; }
 

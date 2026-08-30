@@ -73,7 +73,10 @@ namespace UIMotionComposer.V2.Editor
                     if (panelWrapper == null)
                         panelWrapper = Undo.AddComponent<TweenUIPanel>(gameObject);
                     Undo.RecordObject(panelWrapper, "Add UI Motion Composer V2 panel wrapper");
-                    panelWrapper.HideOnAwake = false;
+
+                    // Carried over rather than hardcoded: a panel that used to start hidden would
+                    // otherwise start visible the moment the legacy controller is removed.
+                    panelWrapper.HideOnAwake = panel.DisableOnStart;
                     panelWrapper.ShowAnimationId = TweenIds.Show;
                     panelWrapper.HideAnimationId = TweenIds.Hide;
                     EditorUtility.SetDirty(panelWrapper);

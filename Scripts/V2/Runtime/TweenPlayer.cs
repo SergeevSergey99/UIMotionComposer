@@ -70,7 +70,14 @@ namespace UIMotionComposer.V2
 
             TweenPlayback playback = TweenPlayback.Create(this, animation, false);
             if (playback == null)
+            {
+                // Distinct from "not found": the animation exists but no enabled clip resolved a
+                // target, so callers waiting on the handle would otherwise see a silent no-op.
+                Debug.LogWarning(
+                    $"[UI Motion Composer] Animation '{animationId}' on {name} has no enabled clip " +
+                    "that resolves a target.", this);
                 return TweenHandle.Invalid;
+            }
 
             if (!TweenRuntimeRunner.TryRegister(playback))
                 return TweenHandle.Invalid;

@@ -18,6 +18,7 @@ namespace UIMotionComposer.V2.Editor
         private static readonly float[] SnapValues = { 0f, 0.01f, 0.05f, 0.1f, 0.25f };
         private static readonly string[] SnapLabels = { "Off", "0.01s", "0.05s", "0.10s", "0.25s" };
         private static readonly Dictionary<string, TimelineState> States = new Dictionary<string, TimelineState>();
+        private const int StateCacheLimit = 64;
 
         private enum DragMode
         {
@@ -42,6 +43,7 @@ namespace UIMotionComposer.V2.Editor
             public int SnapIndex = 2;
             public int UndoGroup = -1;
             public Vector2 Scroll;
+            public int[] TargetIds = Array.Empty<int>();
         }
 
         public static void Draw(SerializedObject owner, SerializedProperty clips,
@@ -402,16 +404,56 @@ namespace UIMotionComposer.V2.Editor
 
         private static TimelineState GetState(SerializedObject owner, string propertyPath)
         {
+            UnityEngine.Object[] targetObjects = owner.targetObjects;
+            var ids = new int[targetObjects.Length];
             string targets = string.Empty;
-            foreach (UnityEngine.Object target in owner.targetObjects)
-                targets += target == null ? "0;" : target.GetInstanceID() + ";";
+            for (int i = 0; i < targetObjects.Length; i++)
+            {
+                ids[i] = targetObjects[i] == null ? 0 : targetObjects[i].GetInstanceID();
+                targets += ids[i] + ";";
+            }
+
             string key = targets + propertyPath;
             if (!States.TryGetValue(key, out TimelineState state))
             {
+                PruneStates();
                 state = new TimelineState();
                 States.Add(key, state);
             }
+
+            state.TargetIds = ids;
             return state;
+        }
+
+        /// <summary>
+        /// Drops entries whose objects are all gone. Keyed by instance id, the cache would otherwise
+        /// keep one entry per object ever inspected for the life of the editor session.
+        /// </summary>
+        private static void PruneStates()
+        {
+            if (States.Count < StateCacheLimit)
+                return;
+
+            var dead = new List<string>();
+            foreach (KeyValuePair<string, TimelineState> pair in States)
+            {
+                bool alive = false;
+                int[] ids = pair.Value.TargetIds;
+                for (int i = 0; i < ids.Length; i++)
+                {
+                    if (ids[i] != 0 && EditorUtility.InstanceIDToObject(ids[i]) != null)
+                    {
+                        alive = true;
+                        break;
+                    }
+                }
+
+                if (!alive)
+                    dead.Add(pair.Key);
+            }
+
+            for (int i = 0; i < dead.Count; i++)
+                States.Remove(dead[i]);
         }
     }
 }
