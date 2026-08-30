@@ -880,12 +880,44 @@ namespace UIMotionComposer.V2.Editor
                             continue;
                         }
 
+                        if (child.name == "Mode" && value is PlayTweenAnimationClip)
+                        {
+                            EditorGUILayout.PropertyField(child, new GUIContent("Playback Mode"), true);
+                            continue;
+                        }
+
                         EditorGUILayout.PropertyField(child, true);
                     }
+                    if (value is PlayTweenAnimationClip)
+                        DrawNestedPlaybackHelp(clip);
                     DrawEasePreview(clip);
                     EditorGUI.indentLevel--;
                 }
             }
+        }
+
+        private static void DrawNestedPlaybackHelp(SerializedProperty clip)
+        {
+            SerializedProperty modeProperty = clip.FindPropertyRelative("Mode");
+            SerializedProperty animationId = clip.FindPropertyRelative("AnimationId");
+            if (modeProperty == null)
+                return;
+
+            var mode = (TweenNestedPlaybackMode)modeProperty.enumValueIndex;
+            string message = mode switch
+            {
+                TweenNestedPlaybackMode.Wait =>
+                    "Wait pauses the parent at this marker until the child finishes. Cancelling the parent also cancels the child; an infinitely looping child will wait forever.",
+                TweenNestedPlaybackMode.LinkLifetime =>
+                    "Link Lifetime runs the child in parallel. Parent completion completes the child; parent cancellation stops it.",
+                _ =>
+                    "Fire And Forget starts the child independently. Parent pause, completion and cancellation do not affect it."
+            };
+            EditorGUILayout.HelpBox(message, MessageType.None);
+
+            if (animationId != null && string.IsNullOrWhiteSpace(animationId.stringValue))
+                EditorGUILayout.HelpBox("Animation ID is empty, so this marker cannot start anything.",
+                    MessageType.Warning);
         }
 
         private static void ShowAddMenu(SerializedObject owner, SerializedProperty clips)

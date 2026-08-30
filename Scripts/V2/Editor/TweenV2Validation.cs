@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using UIMotionComposer.Tweening;
 using UnityEditor;
 using UnityEngine;
@@ -121,6 +122,7 @@ namespace UIMotionComposer.V2.Editor
                     "Legacy duration migration failed.");
 
                 ValidateAuthoringFingerprint(player);
+                ValidateNestedPlaybackModes(player, canvasGroup);
                 ValidateAnimationModeRestore(rect);
 
                 Debug.Log("[UI Motion Composer] V2 smoke tests passed.");
@@ -132,6 +134,122 @@ namespace UIMotionComposer.V2.Editor
                 if (animationAsset != null)
                     UnityEngine.Object.DestroyImmediate(animationAsset);
             }
+        }
+
+        private static void ValidateNestedPlaybackModes(TweenPlayer parentPlayer,
+            CanvasGroup parentCanvasGroup)
+        {
+            var childObject = new GameObject("Nested Tween Validation", typeof(RectTransform),
+                typeof(CanvasGroup), typeof(TweenPlayer));
+            childObject.transform.SetParent(parentPlayer.transform, false);
+            var childPlayer = childObject.GetComponent<TweenPlayer>();
+            var childAnimation = new TweenAnimation { Id = "Child" };
+            childAnimation.Clips.Add(new FadeTweenClip
+            {
+                FadeTarget = TweenFadeTarget.CanvasGroup,
+                FromMode = TweenEndpointMode.Custom,
+                FromValue = 0f,
+                ToMode = TweenEndpointMode.Custom,
+                ToValue = 1f,
+                Ease = UIEase.Linear,
+                Duration = 1f
+            });
+            childPlayer.AnimationDefinitions.Add(childAnimation);
+
+            var nestedClip = new PlayTweenAnimationClip
+            {
+                Delay = 0.2f,
+                Target = childPlayer,
+                AnimationId = childAnimation.Id
+            };
+            var parentAnimation = new TweenAnimation { Id = "Parent" };
+            parentAnimation.Clips.Add(nestedClip);
+            parentAnimation.Clips.Add(new FadeTweenClip
+            {
+                Target = parentCanvasGroup,
+                FadeTarget = TweenFadeTarget.CanvasGroup,
+                FromMode = TweenEndpointMode.Custom,
+                FromValue = 0f,
+                ToMode = TweenEndpointMode.Custom,
+                ToValue = 1f,
+                Ease = UIEase.Linear,
+                Duration = 1f
+            });
+            parentPlayer.AnimationDefinitions.Clear();
+            parentPlayer.AnimationDefinitions.Add(parentAnimation);
+
+            nestedClip.Mode = TweenNestedPlaybackMode.Wait;
+            object waitPlayback = CreatePlaybackForValidation(parentPlayer, parentAnimation);
+            TickPlaybackForValidation(waitPlayback, 0.5f);
+            Require(Mathf.Abs(ReadNormalizedTime(waitPlayback) - 0.2f) < 0.001f,
+                "Wait did not clamp the parent timeline to the nested marker.");
+            Require(childPlayer.IsPlaying(childAnimation.Id),
+                "Wait did not start the child animation.");
+            childPlayer.Complete(childAnimation.Id);
+            TickPlaybackForValidation(waitPlayback, 0.1f);
+            Require(Mathf.Abs(ReadNormalizedTime(waitPlayback) - 0.3f) < 0.001f,
+                "Wait did not resume the parent after the child completed.");
+            StopPlaybackForValidation(waitPlayback, false);
+
+            waitPlayback = CreatePlaybackForValidation(parentPlayer, parentAnimation);
+            TickPlaybackForValidation(waitPlayback, 0.5f);
+            StopPlaybackForValidation(waitPlayback, false);
+            Require(!childPlayer.IsPlaying(childAnimation.Id),
+                "Cancelling a waiting parent did not cancel its child.");
+
+            nestedClip.Mode = TweenNestedPlaybackMode.FireAndForget;
+            object fireAndForgetPlayback = CreatePlaybackForValidation(parentPlayer, parentAnimation);
+            TickPlaybackForValidation(fireAndForgetPlayback, 0.5f);
+            StopPlaybackForValidation(fireAndForgetPlayback, false);
+            Require(childPlayer.IsPlaying(childAnimation.Id),
+                "Fire And Forget child was incorrectly cancelled with its parent.");
+            childPlayer.Stop(childAnimation.Id);
+
+            nestedClip.Mode = TweenNestedPlaybackMode.LinkLifetime;
+            object linkedPlayback = CreatePlaybackForValidation(parentPlayer, parentAnimation);
+            TickPlaybackForValidation(linkedPlayback, 0.5f);
+            StopPlaybackForValidation(linkedPlayback, false);
+            Require(!childPlayer.IsPlaying(childAnimation.Id),
+                "Link Lifetime did not cancel the child with its parent.");
+
+            int childCompletions = 0;
+            childAnimation.OnCompleted.AddListener(() => childCompletions++);
+            linkedPlayback = CreatePlaybackForValidation(parentPlayer, parentAnimation);
+            TickPlaybackForValidation(linkedPlayback, 0.5f);
+            StopPlaybackForValidation(linkedPlayback, true);
+            Require(childCompletions == 1 && !childPlayer.IsPlaying(childAnimation.Id),
+                "Link Lifetime did not complete the child with its parent.");
+
+            childPlayer.StopAll();
+            parentPlayer.AnimationDefinitions.Clear();
+        }
+
+        private static object CreatePlaybackForValidation(TweenPlayer player, TweenAnimation animation)
+        {
+            Type type = typeof(TweenPlayer).Assembly.GetType("UIMotionComposer.V2.TweenPlayback");
+            MethodInfo create = type?.GetMethod("Create", BindingFlags.Public | BindingFlags.Static);
+            object playback = create?.Invoke(null, new object[] { player, animation, false });
+            Require(playback != null, "Could not create a playback for nested animation validation.");
+            type.GetMethod("Begin", BindingFlags.Public | BindingFlags.Instance)?.Invoke(playback, null);
+            return playback;
+        }
+
+        private static void TickPlaybackForValidation(object playback, float delta)
+        {
+            playback.GetType().GetMethod("Tick", BindingFlags.Public | BindingFlags.Instance)
+                ?.Invoke(playback, new object[] { delta, delta });
+        }
+
+        private static void StopPlaybackForValidation(object playback, bool complete)
+        {
+            playback.GetType().GetMethod("Stop", BindingFlags.Public | BindingFlags.Instance)
+                ?.Invoke(playback, new object[] { complete });
+        }
+
+        private static float ReadNormalizedTime(object playback)
+        {
+            return (float)playback.GetType().GetProperty("NormalizedTime",
+                BindingFlags.Public | BindingFlags.Instance).GetValue(playback);
         }
 
         private static void ValidateClipHierarchy(TweenAnimationAsset asset)
@@ -164,7 +282,8 @@ namespace UIMotionComposer.V2.Editor
             {
                 SerializedProperty clip = source.FindProperty("Clips").GetArrayElementAtIndex(0);
                 Require(clip.FindPropertyRelative("Target") != null &&
-                        clip.FindPropertyRelative("TargetKey") != null,
+                        clip.FindPropertyRelative("TargetKey") != null &&
+                        clip.FindPropertyRelative("Mode") != null,
                     "Targeted trigger lost its target binding fields.");
                 Require(clip.FindPropertyRelative("Duration") == null &&
                         clip.FindPropertyRelative("Ease") == null,

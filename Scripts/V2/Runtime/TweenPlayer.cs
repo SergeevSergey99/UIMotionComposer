@@ -589,7 +589,7 @@ namespace UIMotionComposer.V2
 
         public void Tick(float scaledDelta, float unscaledDelta)
         {
-            if (!IsActive || IsPaused)
+            if (!IsActive || IsPaused || IsWaitingForNestedAnimation())
                 return;
 
             TweenPlaybackSettings settings = Animation.Playback ?? new TweenPlaybackSettings();
@@ -602,12 +602,15 @@ namespace UIMotionComposer.V2
             }
 
             _previousTime = _time;
-            _time += delta * _direction;
+            float proposedTime = _time + delta * _direction;
+            _time = ClampToNextWaitMarker(proposedTime);
 
             if (_direction > 0 && _time >= Duration)
             {
                 _time = Duration;
                 Sample(_previousTime, _time, true);
+                if (IsWaitingForNestedAnimation())
+                    return;
                 if (!TryStartNextPass())
                     Finish();
                 return;
@@ -617,6 +620,8 @@ namespace UIMotionComposer.V2
             {
                 _time = 0f;
                 Sample(_previousTime, _time, true);
+                if (IsWaitingForNestedAnimation())
+                    return;
                 if (!TryStartNextPass())
                     Finish();
                 return;
@@ -654,6 +659,7 @@ namespace UIMotionComposer.V2
             }
 
             IsActive = false;
+            ReleaseNestedAnimations(false);
             try
             {
                 Player.NotifyCancelled(Animation);
@@ -710,6 +716,7 @@ namespace UIMotionComposer.V2
                 return;
 
             IsActive = false;
+            ReleaseNestedAnimations(true);
             try
             {
                 Player.NotifyCompleted(Animation);
@@ -717,6 +724,50 @@ namespace UIMotionComposer.V2
             finally
             {
                 Handle.NotifyCompleted();
+            }
+        }
+
+        private float ClampToNextWaitMarker(float proposedTime)
+        {
+            float result = proposedTime;
+            bool found = false;
+            bool forward = _direction > 0;
+            for (int i = 0; i < _states.Count; i++)
+            {
+                TweenClipState state = _states[i];
+                if (state.Clip is not PlayTweenAnimationClip nested ||
+                    !nested.TryGetWaitMarker(state, _pass, forward, _time, proposedTime,
+                        out float marker))
+                    continue;
+
+                result = !found
+                    ? marker
+                    : forward ? Mathf.Min(result, marker) : Mathf.Max(result, marker);
+                found = true;
+            }
+
+            return result;
+        }
+
+        private bool IsWaitingForNestedAnimation()
+        {
+            for (int i = 0; i < _states.Count; i++)
+            {
+                TweenClipState state = _states[i];
+                if (state.Clip is PlayTweenAnimationClip nested && nested.IsWaiting(state))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private void ReleaseNestedAnimations(bool complete)
+        {
+            for (int i = 0; i < _states.Count; i++)
+            {
+                TweenClipState state = _states[i];
+                if (state.Clip is PlayTweenAnimationClip nested)
+                    nested.ReleaseNested(state, complete);
             }
         }
     }
@@ -738,7 +789,8 @@ namespace UIMotionComposer.V2
                 {
                     hideFlags = HideFlags.HideAndDontSave
                 };
-                DontDestroyOnLoad(host);
+                if (Application.isPlaying)
+                    DontDestroyOnLoad(host);
                 _instance = host.AddComponent<TweenRuntimeRunner>();
                 return _instance;
             }

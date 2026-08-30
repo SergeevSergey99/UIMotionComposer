@@ -64,6 +64,15 @@ namespace UIMotionComposer.V2
     {
         public string AnimationId = TweenIds.Show;
 
+        [Tooltip("Fire And Forget runs independently. Wait pauses the parent timeline. Link Lifetime runs in parallel and follows parent completion/cancellation.")]
+        public TweenNestedPlaybackMode Mode = TweenNestedPlaybackMode.FireAndForget;
+
+        private sealed class NestedPlaybackState
+        {
+            public TweenHandle Handle = TweenHandle.Invalid;
+            public TweenNestedPlaybackMode LaunchMode;
+        }
+
         internal override TweenClipState Capture(TweenPlayer player)
         {
             TweenPlayer target = ResolveComponent<TweenPlayer>(ResolveConfiguredTarget(player));
@@ -74,7 +83,8 @@ namespace UIMotionComposer.V2
             {
                 Clip = this,
                 Target = target,
-                BindingKey = string.Empty
+                BindingKey = string.Empty,
+                Metadata = new NestedPlaybackState()
             };
         }
 
@@ -83,11 +93,52 @@ namespace UIMotionComposer.V2
             if (state?.Target is not TweenPlayer target)
                 return;
 
-            if (!target.IsPlaying(AnimationId))
-                target.Play(AnimationId);
+            if (target.IsPlaying(AnimationId))
+                return;
+
+            TweenHandle handle = target.Play(AnimationId);
+            if (state.Metadata is NestedPlaybackState nested)
+            {
+                nested.Handle = handle;
+                nested.LaunchMode = Mode;
+            }
         }
 
         internal override void Restore(TweenPlayer player, TweenClipState state) { }
+
+        internal bool TryGetWaitMarker(TweenClipState state, int pass, bool forward,
+            float from, float to, out float marker)
+        {
+            marker = Mathf.Max(0f, Delay);
+            if (Mode != TweenNestedPlaybackMode.Wait || state == null ||
+                state.LastTriggeredPass == pass)
+                return false;
+
+            return forward
+                ? from <= marker && to >= marker
+                : FireOnReverse && from >= marker && to <= marker;
+        }
+
+        internal bool IsWaiting(TweenClipState state)
+        {
+            return state?.Metadata is NestedPlaybackState nested &&
+                   nested.LaunchMode == TweenNestedPlaybackMode.Wait &&
+                   nested.Handle.IsActive;
+        }
+
+        internal void ReleaseNested(TweenClipState state, bool complete)
+        {
+            if (state?.Metadata is not NestedPlaybackState nested ||
+                nested.LaunchMode == TweenNestedPlaybackMode.FireAndForget ||
+                !nested.Handle.IsActive)
+                return;
+
+            if (complete)
+                nested.Handle.Complete();
+            else
+                nested.Handle.Stop();
+            nested.Handle = TweenHandle.Invalid;
+        }
     }
 
     [Serializable, TweenClipMenu("Text/Text Reveal")]

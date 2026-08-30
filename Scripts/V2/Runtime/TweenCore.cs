@@ -25,6 +25,18 @@ namespace UIMotionComposer.V2
         Complete
     }
 
+    public enum TweenNestedPlaybackMode
+    {
+        [Tooltip("Start the child animation and let it continue independently.")]
+        FireAndForget,
+
+        [Tooltip("Pause the parent timeline at this marker until the child animation finishes.")]
+        Wait,
+
+        [Tooltip("Run in parallel, but cancel or complete the child together with the parent.")]
+        LinkLifetime
+    }
+
     public enum TweenEndpointMode
     {
         Current,

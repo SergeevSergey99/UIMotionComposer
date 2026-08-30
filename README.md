@@ -61,6 +61,14 @@ Per-animation settings select scaled/unscaled time, override/additive blending, 
 behaviour, restart/ping-pong loops and finite or infinite loop counts. Utility clips do not execute
 their side effects in edit-mode preview.
 
+**Utility ▸ Play Tween Animation** starts an animation on another targeted `TweenPlayer`. Its
+**Playback Mode** controls ownership: **Fire And Forget** leaves the child independent; **Wait**
+holds the parent timeline at the trigger marker until the child finishes and cancels the child if
+the parent is cancelled; **Link Lifetime** runs both in parallel, completing the child with a
+completed parent and cancelling it with a cancelled parent. Waiting on an infinite child loop is
+intentionally infinite. `GetDuration()` reports the authored parent timeline only; runtime spent in
+**Wait** is dynamic and is not added to that value.
+
 V2 playback is intentionally independent of DOTween. `DOTween.KillAll()`, `DOTween.timeScale` and
 the DOTween inspector do not control V2 animations; use `TweenPlayer.Stop`, `StopAll`, `Complete`
 and the returned `TweenHandle`. This keeps runtime sampling identical to the inspector preview.
