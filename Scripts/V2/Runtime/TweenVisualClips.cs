@@ -64,7 +64,7 @@ namespace UIMotionComposer.V2
     }
 
     [Serializable, TweenClipMenu("Visual/Color")]
-    public sealed class ColorTweenClip : BaseTweenClip
+    public sealed class ColorTweenClip : DurationTweenClip
     {
         public TweenColorTarget ColorTarget = TweenColorTarget.Auto;
 

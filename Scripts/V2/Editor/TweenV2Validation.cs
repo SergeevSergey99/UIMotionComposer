@@ -19,6 +19,7 @@ namespace UIMotionComposer.V2.Editor
                 MonoScript assetScript = MonoScript.FromScriptableObject(animationAsset);
                 Require(assetScript != null && assetScript.GetClass() == typeof(TweenAnimationAsset),
                     "TweenAnimationAsset does not resolve to its own MonoScript file.");
+                ValidateClipHierarchy(animationAsset);
 
                 gameObject = new GameObject("UI Motion Composer V2 Validation", typeof(RectTransform), typeof(CanvasGroup));
                 var rect = gameObject.GetComponent<RectTransform>();
@@ -115,7 +116,9 @@ namespace UIMotionComposer.V2.Editor
                 var migrated = LegacyTweenMigrator.Convert(legacy);
                 Require(migrated.Count == 1, $"Expected one migrated clip, got {migrated.Count}.");
                 Require(Mathf.Abs(migrated[0].Delay - 0.5f) < 0.001f, "Legacy delay migration failed.");
-                Require(Mathf.Abs(migrated[0].Duration - 1f) < 0.001f, "Legacy duration migration failed.");
+                Require(migrated[0] is DurationTweenClip migratedClip &&
+                        Mathf.Abs(migratedClip.Duration - 1f) < 0.001f,
+                    "Legacy duration migration failed.");
 
                 ValidateAuthoringFingerprint(player);
                 ValidateAnimationModeRestore(rect);
@@ -129,6 +132,57 @@ namespace UIMotionComposer.V2.Editor
                 if (animationAsset != null)
                     UnityEngine.Object.DestroyImmediate(animationAsset);
             }
+        }
+
+        private static void ValidateClipHierarchy(TweenAnimationAsset asset)
+        {
+            asset.Clips.Clear();
+            var eventClip = new EventTweenClip { Delay = 0.7f };
+            asset.Clips.Add(eventClip);
+            using (var source = new SerializedObject(asset))
+            {
+                SerializedProperty clip = source.FindProperty("Clips").GetArrayElementAtIndex(0);
+                Require(clip.FindPropertyRelative("Delay") != null,
+                    "Trigger clip lost its timeline marker.");
+                Require(clip.FindPropertyRelative("FireOnReverse") != null,
+                    "Trigger clip lost reverse playback configuration.");
+                Require(clip.FindPropertyRelative("Duration") == null &&
+                        clip.FindPropertyRelative("Ease") == null &&
+                        clip.FindPropertyRelative("UseCustomCurve") == null &&
+                        clip.FindPropertyRelative("ApplyFromBeforeDelay") == null,
+                    "Trigger clip still serializes duration/easing fields it cannot use.");
+                Require(clip.FindPropertyRelative("Target") == null &&
+                        clip.FindPropertyRelative("TargetKey") == null,
+                    "Targetless Event clip still serializes target fields it cannot use.");
+            }
+            Require(Mathf.Abs(eventClip.EndTime - eventClip.Delay) < 0.001f,
+                "Trigger clip duration is not its marker time.");
+
+            asset.Clips.Clear();
+            asset.Clips.Add(new PlayTweenAnimationClip());
+            using (var source = new SerializedObject(asset))
+            {
+                SerializedProperty clip = source.FindProperty("Clips").GetArrayElementAtIndex(0);
+                Require(clip.FindPropertyRelative("Target") != null &&
+                        clip.FindPropertyRelative("TargetKey") != null,
+                    "Targeted trigger lost its target binding fields.");
+                Require(clip.FindPropertyRelative("Duration") == null &&
+                        clip.FindPropertyRelative("Ease") == null,
+                    "Targeted trigger still serializes duration/easing fields it cannot use.");
+            }
+
+            asset.Clips.Clear();
+            asset.Clips.Add(new ScaleTweenClip());
+            using (var source = new SerializedObject(asset))
+            {
+                SerializedProperty clip = source.FindProperty("Clips").GetArrayElementAtIndex(0);
+                Require(clip.FindPropertyRelative("Target") != null &&
+                        clip.FindPropertyRelative("Duration") != null &&
+                        clip.FindPropertyRelative("Ease") != null,
+                    "Duration clip lost target or timing fields during hierarchy split.");
+            }
+
+            asset.Clips.Clear();
         }
 
         private static void ValidateTargetSlot(TweenPlayer player, TweenAnimation animation,

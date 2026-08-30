@@ -253,7 +253,7 @@ namespace UIMotionComposer.V2.Editor
             clip.ToOffset = handler.TargetOffset;
         }
 
-        private static void ConfigureTiming(BaseTweenClip clip, AnimationProcessData process, float totalDuration)
+        private static void ConfigureTiming(DurationTweenClip clip, AnimationProcessData process, float totalDuration)
         {
             process ??= new AnimationProcessData();
             float start = Mathf.Clamp01(Mathf.Min(process.Timeline.x, process.Timeline.y));

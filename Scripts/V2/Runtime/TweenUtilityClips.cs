@@ -7,31 +7,17 @@ using UnityEngine.UI;
 namespace UIMotionComposer.V2
 {
     [Serializable, TweenClipMenu("Utility/Event")]
-    public sealed class EventTweenClip : BaseTweenClip
+    public sealed class EventTweenClip : TriggerTweenClip
     {
         public UnityEvent Event = new UnityEvent();
-        public bool FireOnReverse;
-
-        public override bool HasSideEffects => true;
 
         internal override TweenClipState Capture(TweenPlayer player)
         {
             return new TweenClipState { Clip = this, BindingKey = string.Empty };
         }
 
-        internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
+        internal override void Fire(TweenPlayer player, TweenClipState state, bool forward)
         {
-            if (!sample.AllowSideEffects || state.LastTriggeredPass == sample.Pass)
-                return;
-
-            float trigger = Mathf.Max(0f, Delay);
-            bool crossedForward = sample.Forward && sample.PreviousTime <= trigger && sample.Time >= trigger;
-            bool crossedReverse = FireOnReverse && !sample.Forward &&
-                                  sample.PreviousTime >= trigger && sample.Time <= trigger;
-            if (!crossedForward && !crossedReverse)
-                return;
-
-            state.LastTriggeredPass = sample.Pass;
             Event?.Invoke();
         }
 
@@ -39,12 +25,9 @@ namespace UIMotionComposer.V2
     }
 
     [Serializable, TweenClipMenu("Utility/Toggle Object")]
-    public sealed class ToggleObjectTweenClip : BaseTweenClip
+    public sealed class ToggleObjectTweenClip : TargetedTriggerTweenClip
     {
         public bool Active = true;
-        public bool FireOnReverse;
-
-        public override bool HasSideEffects => true;
 
         internal override TweenClipState Capture(TweenPlayer player)
         {
@@ -61,21 +44,12 @@ namespace UIMotionComposer.V2
             };
         }
 
-        internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
+        internal override void Fire(TweenPlayer player, TweenClipState state, bool forward)
         {
-            if (!sample.AllowSideEffects || state?.Target is not GameObject target ||
-                state.LastTriggeredPass == sample.Pass)
+            if (state?.Target is not GameObject target)
                 return;
 
-            float trigger = Mathf.Max(0f, Delay);
-            bool crossedForward = sample.Forward && sample.PreviousTime <= trigger && sample.Time >= trigger;
-            bool crossedReverse = FireOnReverse && !sample.Forward &&
-                                  sample.PreviousTime >= trigger && sample.Time <= trigger;
-            if (!crossedForward && !crossedReverse)
-                return;
-
-            target.SetActive(sample.Forward ? Active : !Active);
-            state.LastTriggeredPass = sample.Pass;
+            target.SetActive(forward ? Active : !Active);
         }
 
         internal override void Restore(TweenPlayer player, TweenClipState state)
@@ -86,18 +60,15 @@ namespace UIMotionComposer.V2
     }
 
     [Serializable, TweenClipMenu("Utility/Play Tween Animation")]
-    public sealed class PlayTweenAnimationClip : BaseTweenClip
+    public sealed class PlayTweenAnimationClip : TargetedTriggerTweenClip
     {
         public string AnimationId = TweenIds.Show;
-        public bool FireOnReverse;
-
-        public override bool HasSideEffects => true;
 
         internal override TweenClipState Capture(TweenPlayer player)
         {
             TweenPlayer target = ResolveComponent<TweenPlayer>(ResolveConfiguredTarget(player));
             if (target == null)
-                target = player;
+                return null;
 
             return new TweenClipState
             {
@@ -107,20 +78,11 @@ namespace UIMotionComposer.V2
             };
         }
 
-        internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
+        internal override void Fire(TweenPlayer player, TweenClipState state, bool forward)
         {
-            if (!sample.AllowSideEffects || state?.Target is not TweenPlayer target ||
-                state.LastTriggeredPass == sample.Pass)
+            if (state?.Target is not TweenPlayer target)
                 return;
 
-            float trigger = Mathf.Max(0f, Delay);
-            bool crossedForward = sample.Forward && sample.PreviousTime <= trigger && sample.Time >= trigger;
-            bool crossedReverse = FireOnReverse && !sample.Forward &&
-                                  sample.PreviousTime >= trigger && sample.Time <= trigger;
-            if (!crossedForward && !crossedReverse)
-                return;
-
-            state.LastTriggeredPass = sample.Pass;
             if (!target.IsPlaying(AnimationId))
                 target.Play(AnimationId);
         }
@@ -129,7 +91,7 @@ namespace UIMotionComposer.V2
     }
 
     [Serializable, TweenClipMenu("Text/Text Reveal")]
-    public sealed class TextRevealTweenClip : BaseTweenClip
+    public sealed class TextRevealTweenClip : DurationTweenClip
     {
         [Min(0)] public int FromCharacters;
         [Tooltip("Use -1 to reveal the whole string.")]
@@ -246,7 +208,7 @@ namespace UIMotionComposer.V2
     }
 
     [Serializable, TweenClipMenu("Text/Text Counter")]
-    public sealed class TextCounterTweenClip : BaseTweenClip
+    public sealed class TextCounterTweenClip : DurationTweenClip
     {
         public float FromValue;
         public float ToValue = 100f;

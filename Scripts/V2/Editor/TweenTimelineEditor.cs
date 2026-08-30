@@ -94,7 +94,7 @@ namespace UIMotionComposer.V2.Editor
             EditorGUILayout.EndScrollView();
 
             EditorGUILayout.LabelField(
-                "Drag a block to move • drag its edges to resize • Alt disables snapping",
+                "Drag to move • drag duration clip edges to resize • markers move only • Alt disables snapping",
                 EditorStyles.centeredGreyMiniLabel);
         }
 
@@ -133,7 +133,8 @@ namespace UIMotionComposer.V2.Editor
             SerializedProperty duration = clip.FindPropertyRelative("Duration");
             SerializedProperty enabled = clip.FindPropertyRelative("Enabled");
             float start = Mathf.Max(0f, delay.floatValue);
-            float length = Mathf.Max(0f, duration.floatValue);
+            bool isMarker = duration == null;
+            float length = isMarker ? 0f : Mathf.Max(0f, duration.floatValue);
 
             float actualLabelWidth = Mathf.Min(LabelWidth, row.width * 0.4f);
             Rect labelRect = new Rect(row.x, row.y, actualLabelWidth, row.height);
@@ -151,7 +152,8 @@ namespace UIMotionComposer.V2.Editor
             GUI.Label(new Rect(labelRect.x + 5f, labelRect.y + 2f, labelRect.width - 8f, 16f),
                 new GUIContent(label, value.GetType().Name), EditorStyles.miniBoldLabel);
             GUI.Label(new Rect(labelRect.x + 5f, labelRect.y + 16f, labelRect.width - 8f, 14f),
-                $"{start:0.###}  →  {start + length:0.###}", EditorStyles.centeredGreyMiniLabel);
+                isMarker ? $"at {start:0.###}" : $"{start:0.###}  →  {start + length:0.###}",
+                EditorStyles.centeredGreyMiniLabel);
 
             DrawGrid(timeRect, viewDuration);
             float blockX = TimeToX(start, timeRect, viewDuration);
@@ -165,21 +167,30 @@ namespace UIMotionComposer.V2.Editor
             if (!enabled.boolValue)
                 color = Color.Lerp(color, Color.gray, 0.65f);
             EditorGUI.DrawRect(block, color);
-            EditorGUI.DrawRect(new Rect(block.x, block.y, HandleWidth, block.height), Color.Lerp(color, Color.white, 0.32f));
-            EditorGUI.DrawRect(new Rect(block.xMax - HandleWidth, block.y, HandleWidth, block.height), Color.Lerp(color, Color.white, 0.32f));
-            GUI.Label(block, length <= 0.001f ? "◆" : $"{length:0.##}s", EditorStyles.centeredGreyMiniLabel);
-            EditorGUIUtility.AddCursorRect(new Rect(block.x, block.y, HandleWidth, block.height), MouseCursor.ResizeHorizontal);
-            EditorGUIUtility.AddCursorRect(new Rect(block.xMax - HandleWidth, block.y, HandleWidth, block.height), MouseCursor.ResizeHorizontal);
-            EditorGUIUtility.AddCursorRect(new Rect(block.x + HandleWidth, block.y,
-                Mathf.Max(0f, block.width - HandleWidth * 2f), block.height), MouseCursor.MoveArrow);
+            if (isMarker)
+            {
+                GUI.Label(block, "◆", EditorStyles.centeredGreyMiniLabel);
+                EditorGUIUtility.AddCursorRect(block, MouseCursor.MoveArrow);
+            }
+            else
+            {
+                EditorGUI.DrawRect(new Rect(block.x, block.y, HandleWidth, block.height), Color.Lerp(color, Color.white, 0.32f));
+                EditorGUI.DrawRect(new Rect(block.xMax - HandleWidth, block.y, HandleWidth, block.height), Color.Lerp(color, Color.white, 0.32f));
+                GUI.Label(block, length <= 0.001f ? "0s" : $"{length:0.##}s", EditorStyles.centeredGreyMiniLabel);
+                EditorGUIUtility.AddCursorRect(new Rect(block.x, block.y, HandleWidth, block.height), MouseCursor.ResizeHorizontal);
+                EditorGUIUtility.AddCursorRect(new Rect(block.xMax - HandleWidth, block.y, HandleWidth, block.height), MouseCursor.ResizeHorizontal);
+                EditorGUIUtility.AddCursorRect(new Rect(block.x + HandleWidth, block.y,
+                    Mathf.Max(0f, block.width - HandleWidth * 2f), block.height), MouseCursor.MoveArrow);
+            }
 
             DrawPlayhead(timeRect, normalizedPlayhead);
-            HandleRow(owner, clip, index, row, timeRect, block, viewDuration, onScrub, state);
+            HandleRow(owner, clip, index, row, timeRect, block, viewDuration, onScrub, state,
+                !isMarker);
         }
 
         private static void HandleRow(SerializedObject owner, SerializedProperty clip, int index,
             Rect row, Rect timeRect, Rect block, float viewDuration, Action<float> onScrub,
-            TimelineState state)
+            TimelineState state, bool resizable)
         {
             Event current = Event.current;
             int control = GUIUtility.GetControlID((owner.targetObject.GetInstanceID() * 397) ^
@@ -193,10 +204,12 @@ namespace UIMotionComposer.V2.Editor
                 state.DragClip = index;
                 state.StartMouseX = current.mousePosition.x;
                 state.StartDelay = delay.floatValue;
-                state.StartDuration = duration.floatValue;
+                state.StartDuration = duration?.floatValue ?? 0f;
                 state.DragViewDuration = viewDuration;
                 state.SelectedClip = index;
-                state.Mode = current.mousePosition.x <= block.x + HandleWidth
+                state.Mode = !resizable
+                    ? DragMode.Move
+                    : current.mousePosition.x <= block.x + HandleWidth
                     ? DragMode.ResizeStart
                     : current.mousePosition.x >= block.xMax - HandleWidth
                         ? DragMode.ResizeEnd
@@ -263,6 +276,8 @@ namespace UIMotionComposer.V2.Editor
                     break;
                 case DragMode.ResizeStart:
                 {
+                    if (duration == null)
+                        break;
                     float originalEnd = state.StartDelay + state.StartDuration;
                     float nextDelay = Mathf.Clamp(state.StartDelay + delta, 0f,
                         Mathf.Max(0f, originalEnd - MinimumDuration));
@@ -273,6 +288,8 @@ namespace UIMotionComposer.V2.Editor
                     break;
                 }
                 case DragMode.ResizeEnd:
+                    if (duration == null)
+                        break;
                     duration.floatValue = Snap(Mathf.Max(0f, state.StartDuration + delta), snap);
                     break;
             }
@@ -366,9 +383,11 @@ namespace UIMotionComposer.V2.Editor
                 SerializedProperty enabled = clip.FindPropertyRelative("Enabled");
                 SerializedProperty delay = clip.FindPropertyRelative("Delay");
                 SerializedProperty length = clip.FindPropertyRelative("Duration");
-                if (delay == null || length == null || enabled?.boolValue == false)
+                if (delay == null || enabled?.boolValue == false)
                     continue;
-                duration = Mathf.Max(duration, Mathf.Max(0f, delay.floatValue) + Mathf.Max(0f, length.floatValue));
+                float end = Mathf.Max(0f, delay.floatValue) +
+                            (length == null ? 0f : Mathf.Max(0f, length.floatValue));
+                duration = Mathf.Max(duration, end);
             }
             return duration;
         }

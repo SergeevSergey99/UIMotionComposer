@@ -4,7 +4,7 @@ using UnityEngine;
 namespace UIMotionComposer.V2
 {
     [Serializable, TweenClipMenu("Effects/Punch Scale")]
-    public sealed class PunchScaleTweenClip : BaseTweenClip
+    public sealed class PunchScaleTweenClip : DurationTweenClip
     {
         public Vector3 Strength = new Vector3(0.15f, 0.15f, 0.15f);
         [Range(1, 30)] public int Vibrato = 8;
@@ -56,7 +56,7 @@ namespace UIMotionComposer.V2
     }
 
     [Serializable, TweenClipMenu("Effects/Punch Anchor Position")]
-    public sealed class PunchAnchorPositionTweenClip : BaseTweenClip
+    public sealed class PunchAnchorPositionTweenClip : DurationTweenClip
     {
         public Vector2 Strength = new Vector2(16f, 0f);
         [Range(1, 30)] public int Vibrato = 8;
@@ -107,7 +107,7 @@ namespace UIMotionComposer.V2
     }
 
     [Serializable, TweenClipMenu("Effects/Shake")]
-    public sealed class ShakeTweenClip : BaseTweenClip
+    public sealed class ShakeTweenClip : DurationTweenClip
     {
         public Vector3 Strength = new Vector3(10f, 10f, 0f);
         [Range(1, 50)] public int Vibrato = 12;

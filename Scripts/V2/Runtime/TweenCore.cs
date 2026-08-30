@@ -176,22 +176,9 @@ namespace UIMotionComposer.V2
         public string Label;
 
         [Min(0f)] public float Delay;
-        [Min(0f)] public float Duration = 0.3f;
 
-        public UIEase Ease = UIEase.OutQuad;
-        public bool UseCustomCurve;
-        public AnimationCurve CustomCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
-
-        [Tooltip("Optional direct target for an inline clip. Shared assets should use Target Slot instead. When both fields are empty, the TweenPlayer object is used.")]
-        public UnityEngine.Object Target;
-
-        [Tooltip("Portable target slot resolved by each TweenPlayer. It takes priority over Direct Target. Use this for clips stored in a shared asset.")]
-        public string TargetKey;
-
-        [Tooltip("Apply the configured From value while this clip is waiting for its delay.")]
-        public bool ApplyFromBeforeDelay = true;
-
-        public float EndTime => Mathf.Max(0f, Delay) + Mathf.Max(0f, Duration);
+        /// <summary>Trigger clips end at their marker; duration clips override this.</summary>
+        public virtual float EndTime => Mathf.Max(0f, Delay);
         public virtual bool HasSideEffects => false;
 
         internal abstract TweenClipState Capture(TweenPlayer player);
@@ -201,11 +188,6 @@ namespace UIMotionComposer.V2
         internal virtual void ResetPass(TweenClipState state)
         {
             state.LastTriggeredPass = -1;
-        }
-
-        internal UnityEngine.Object ResolveConfiguredTarget(TweenPlayer player)
-        {
-            return player.ResolveTarget(TargetKey, Target);
         }
 
         protected static T ResolveComponent<T>(UnityEngine.Object source) where T : Component
@@ -231,28 +213,6 @@ namespace UIMotionComposer.V2
                 Component component => component.gameObject,
                 _ => null
             };
-        }
-
-        protected float Progress(float time)
-        {
-            float delay = Mathf.Max(0f, Delay);
-            if (time < delay)
-                return 0f;
-
-            float duration = Mathf.Max(0f, Duration);
-            return duration <= 0f ? 1f : Mathf.Clamp01((time - delay) / duration);
-        }
-
-        protected bool ShouldApply(float time)
-        {
-            return ApplyFromBeforeDelay || time >= Mathf.Max(0f, Delay);
-        }
-
-        protected float EaseProgress(float progress)
-        {
-            return UseCustomCurve && CustomCurve != null
-                ? CustomCurve.Evaluate(progress)
-                : UIEaseEvaluator.Evaluate(Ease, progress);
         }
 
         protected static string MakeBindingKey(UnityEngine.Object target, string property)
@@ -313,8 +273,120 @@ namespace UIMotionComposer.V2
         }
     }
 
+    /// <summary>A clip whose effect is applied to a player-local or directly assigned object.</summary>
     [Serializable]
-    public abstract class Vector3TweenClip : BaseTweenClip
+    public abstract class TargetedTweenClip : BaseTweenClip
+    {
+        [Tooltip("Optional direct target for an inline clip. Shared assets should use Target Slot instead. When both fields are empty, the TweenPlayer object is used.")]
+        public UnityEngine.Object Target;
+
+        [Tooltip("Portable target slot resolved by each TweenPlayer. It takes priority over Direct Target. Use this for clips stored in a shared asset.")]
+        public string TargetKey;
+
+        internal UnityEngine.Object ResolveConfiguredTarget(TweenPlayer player)
+        {
+            return player.ResolveTarget(TargetKey, Target);
+        }
+    }
+
+    /// <summary>A continuous, eased clip with a start and an end on the timeline.</summary>
+    [Serializable]
+    public abstract class DurationTweenClip : TargetedTweenClip
+    {
+        [Min(0f)] public float Duration = 0.3f;
+
+        public UIEase Ease = UIEase.OutQuad;
+        public bool UseCustomCurve;
+        public AnimationCurve CustomCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+
+        [Tooltip("Apply the configured From value while this clip is waiting for its delay.")]
+        public bool ApplyFromBeforeDelay = true;
+
+        public override float EndTime => Mathf.Max(0f, Delay) + Mathf.Max(0f, Duration);
+
+        protected float Progress(float time)
+        {
+            float delay = Mathf.Max(0f, Delay);
+            if (time < delay)
+                return 0f;
+
+            float duration = Mathf.Max(0f, Duration);
+            return duration <= 0f ? 1f : Mathf.Clamp01((time - delay) / duration);
+        }
+
+        protected bool ShouldApply(float time)
+        {
+            return ApplyFromBeforeDelay || time >= Mathf.Max(0f, Delay);
+        }
+
+        protected float EaseProgress(float progress)
+        {
+            return UseCustomCurve && CustomCurve != null
+                ? CustomCurve.Evaluate(progress)
+                : UIEaseEvaluator.Evaluate(Ease, progress);
+        }
+    }
+
+    /// <summary>A targetless, one-shot marker such as a UnityEvent.</summary>
+    [Serializable]
+    public abstract class TriggerTweenClip : BaseTweenClip
+    {
+        public bool FireOnReverse;
+        public sealed override bool HasSideEffects => true;
+
+        internal sealed override void Evaluate(TweenPlayer player, TweenClipState state,
+            in TweenSampleInfo sample)
+        {
+            if (!sample.AllowSideEffects || state == null || state.LastTriggeredPass == sample.Pass ||
+                !Crossed(sample))
+                return;
+
+            state.LastTriggeredPass = sample.Pass;
+            Fire(player, state, sample.Forward);
+        }
+
+        internal abstract void Fire(TweenPlayer player, TweenClipState state, bool forward);
+
+        private bool Crossed(in TweenSampleInfo sample)
+        {
+            float trigger = Mathf.Max(0f, Delay);
+            return sample.Forward
+                ? sample.PreviousTime <= trigger && sample.Time >= trigger
+                : FireOnReverse && sample.PreviousTime >= trigger && sample.Time <= trigger;
+        }
+    }
+
+    /// <summary>A one-shot marker that resolves a concrete object through Direct Target or Target Slot.</summary>
+    [Serializable]
+    public abstract class TargetedTriggerTweenClip : TargetedTweenClip
+    {
+        public bool FireOnReverse;
+        public sealed override bool HasSideEffects => true;
+
+        internal sealed override void Evaluate(TweenPlayer player, TweenClipState state,
+            in TweenSampleInfo sample)
+        {
+            if (!sample.AllowSideEffects || state == null || state.LastTriggeredPass == sample.Pass ||
+                !Crossed(sample))
+                return;
+
+            state.LastTriggeredPass = sample.Pass;
+            Fire(player, state, sample.Forward);
+        }
+
+        internal abstract void Fire(TweenPlayer player, TweenClipState state, bool forward);
+
+        private bool Crossed(in TweenSampleInfo sample)
+        {
+            float trigger = Mathf.Max(0f, Delay);
+            return sample.Forward
+                ? sample.PreviousTime <= trigger && sample.Time >= trigger
+                : FireOnReverse && sample.PreviousTime >= trigger && sample.Time <= trigger;
+        }
+    }
+
+    [Serializable]
+    public abstract class Vector3TweenClip : DurationTweenClip
     {
         public TweenEndpointMode FromMode = TweenEndpointMode.Current;
         public Vector3 FromValue;
@@ -404,7 +476,7 @@ namespace UIMotionComposer.V2
     }
 
     [Serializable]
-    public abstract class Vector2TweenClip : BaseTweenClip
+    public abstract class Vector2TweenClip : DurationTweenClip
     {
         public TweenEndpointMode FromMode = TweenEndpointMode.Current;
         public Vector2 FromValue;
@@ -491,7 +563,7 @@ namespace UIMotionComposer.V2
     }
 
     [Serializable]
-    public abstract class FloatTweenClip : BaseTweenClip
+    public abstract class FloatTweenClip : DurationTweenClip
     {
         public TweenEndpointMode FromMode = TweenEndpointMode.Current;
         public float FromValue;

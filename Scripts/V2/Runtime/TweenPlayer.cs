@@ -357,8 +357,8 @@ namespace UIMotionComposer.V2
                 for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
                 {
                     BaseTweenClip clip = clips[clipIndex];
-                    if (clip != null && clip.Enabled)
-                        CollectRect(clip.ResolveConfiguredTarget(this), rects);
+                    if (clip is TargetedTweenClip { Enabled: true } targeted)
+                        CollectRect(targeted.ResolveConfiguredTarget(this), rects);
                 }
             }
 
