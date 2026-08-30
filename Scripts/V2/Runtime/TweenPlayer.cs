@@ -17,11 +17,20 @@ namespace UIMotionComposer.V2
         [SerializeField]
         private List<string> playOnEnable = new List<string>();
 
+        [SerializeField, HideInInspector]
+        private bool hasCapturedInitialValues;
+
+        [SerializeField, HideInInspector]
+        private List<TweenInitialValue> capturedInitialValues = new List<TweenInitialValue>();
+
         private readonly Dictionary<string, object> _initialValues = new Dictionary<string, object>();
+        private bool _isCapturingInitialValues;
         private TweenPlayback _preview;
 
         public IReadOnlyList<TweenAnimation> Animations => animations;
         public IReadOnlyList<TweenTargetOverride> TargetOverrides => targetOverrides;
+        public bool HasCapturedInitialValues => hasCapturedInitialValues;
+        public int CapturedInitialValueCount => capturedInitialValues?.Count ?? 0;
 
         /// <summary>
         /// Mutable authoring API used by editor tooling and importers. Runtime code should normally
@@ -121,16 +130,29 @@ namespace UIMotionComposer.V2
         /// </summary>
         public bool Preview(string animationId, float normalizedTime)
         {
+            if (_preview == null || _preview.Animation != FindAnimation(animationId))
+                PreparePreview(animationId);
+
+            return SamplePreparedPreview(normalizedTime);
+        }
+
+        /// <summary>
+        /// Rebuilds the preview snapshot without writing an animated value. Editor tooling uses the
+        /// returned targets to register Undo before the first sample is applied.
+        /// </summary>
+        public UnityEngine.Object[] PreparePreview(string animationId)
+        {
             TweenAnimation animation = FindAnimation(animationId);
+            StopPreview();
             if (animation == null)
-                return false;
+                return Array.Empty<UnityEngine.Object>();
 
-            if (_preview == null || _preview.Animation != animation)
-            {
-                StopPreview();
-                _preview = TweenPlayback.Create(this, animation, true);
-            }
+            _preview = TweenPlayback.Create(this, animation, true);
+            return _preview?.GetAffectedTargets() ?? Array.Empty<UnityEngine.Object>();
+        }
 
+        public bool SamplePreparedPreview(float normalizedTime)
+        {
             if (_preview == null)
                 return false;
 
@@ -147,7 +169,82 @@ namespace UIMotionComposer.V2
             _preview = null;
         }
 
+        /// <summary>
+        /// Captures the authored pose after driven layouts have settled. Initial endpoints keep
+        /// using this serialized pose across play sessions and scene reloads.
+        /// </summary>
+        [ContextMenu("Capture Initial Values")]
+        public void CaptureInitialValues()
+        {
+            StopPreview();
+            RebuildDrivenLayouts();
+
+            _initialValues.Clear();
+            capturedInitialValues ??= new List<TweenInitialValue>();
+            capturedInitialValues.Clear();
+            hasCapturedInitialValues = true;
+            _isCapturingInitialValues = true;
+
+            try
+            {
+                for (int animationIndex = 0; animationIndex < animations.Count; animationIndex++)
+                {
+                    TweenAnimation animation = animations[animationIndex];
+                    if (animation == null)
+                        continue;
+
+                    IReadOnlyList<BaseTweenClip> clips = animation.EffectiveClips;
+                    for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+                    {
+                        BaseTweenClip clip = clips[clipIndex];
+                        if (clip != null && clip.Enabled)
+                            clip.Capture(this);
+                    }
+                }
+            }
+            finally
+            {
+                _isCapturingInitialValues = false;
+            }
+        }
+
+        /// <summary>Imports the authored pose stored by a legacy V1 controller.</summary>
+        public void ImportLegacyInitialValues(TempValues legacyValues)
+        {
+            CaptureInitialValues();
+            if (legacyValues == null)
+                return;
+
+            RectTransform rect = transform as RectTransform;
+            if (rect != null)
+            {
+                StoreCapturedInitial(rect, "RectTransform.AnchoredPosition",
+                    (Vector2)legacyValues.position);
+                StoreCapturedInitial(rect, "RectTransform.AnchoredPosition3D", legacyValues.position);
+                StoreCapturedInitial(rect, "Transform.LocalScale", legacyValues.localScale);
+                StoreCapturedInitial(rect, "Transform.LocalRotation", legacyValues.localRotation);
+                StoreCapturedInitial(rect, "RectTransform.SizeDelta", legacyValues.sizeDelta);
+                StoreCapturedInitial(rect, "RectTransform.Pivot", legacyValues.pivot);
+            }
+
+            CanvasGroup canvasGroup = GetComponent<CanvasGroup>();
+            if (canvasGroup != null)
+                StoreCapturedInitial(canvasGroup, "Visual.Alpha", legacyValues.alpha);
+
+            _initialValues.Clear();
+        }
+
+        [ContextMenu("Clear Captured Initial Values")]
         public void ClearCapturedInitialValues()
+        {
+            StopPreview();
+            _initialValues.Clear();
+            capturedInitialValues?.Clear();
+            hasCapturedInitialValues = false;
+        }
+
+        /// <summary>Drops non-serialized preview/runtime caches after an editor Undo or import.</summary>
+        public void InvalidateAuthoringCache()
         {
             StopPreview();
             _initialValues.Clear();
@@ -183,7 +280,8 @@ namespace UIMotionComposer.V2
             return directTarget != null ? directTarget : gameObject;
         }
 
-        internal T GetOrCaptureInitial<T>(string bindingKey, T current)
+        internal T GetOrCaptureInitial<T>(UnityEngine.Object target, string propertyId,
+            string bindingKey, T current)
         {
             if (string.IsNullOrEmpty(bindingKey))
                 return current;
@@ -191,8 +289,84 @@ namespace UIMotionComposer.V2
             if (_initialValues.TryGetValue(bindingKey, out object value) && value is T typed)
                 return typed;
 
+            if (!_isCapturingInitialValues && hasCapturedInitialValues && capturedInitialValues != null)
+            {
+                for (int i = 0; i < capturedInitialValues.Count; i++)
+                {
+                    TweenInitialValue entry = capturedInitialValues[i];
+                    if (entry != null && entry.Matches(target, propertyId) && entry.TryGet(out T stored))
+                    {
+                        _initialValues[bindingKey] = stored;
+                        return stored;
+                    }
+                }
+            }
+
             _initialValues[bindingKey] = current;
+            if (_isCapturingInitialValues)
+                StoreCapturedInitial(target, propertyId, current);
             return current;
+        }
+
+        private void StoreCapturedInitial<T>(UnityEngine.Object target, string propertyId, T value)
+        {
+            if (target == null || string.IsNullOrEmpty(propertyId))
+                return;
+
+            for (int i = 0; i < capturedInitialValues.Count; i++)
+            {
+                TweenInitialValue existing = capturedInitialValues[i];
+                if (existing != null && existing.Matches(target, propertyId))
+                {
+                    capturedInitialValues[i] = TweenInitialValue.Create(target, propertyId, value);
+                    return;
+                }
+            }
+
+            capturedInitialValues.Add(TweenInitialValue.Create(target, propertyId, value));
+        }
+
+        private void RebuildDrivenLayouts()
+        {
+            Canvas.ForceUpdateCanvases();
+            var rects = new HashSet<RectTransform>();
+            CollectRect(gameObject, rects);
+
+            for (int i = 0; i < targetOverrides.Count; i++)
+                CollectRect(targetOverrides[i]?.Target, rects);
+
+            for (int animationIndex = 0; animationIndex < animations.Count; animationIndex++)
+            {
+                TweenAnimation animation = animations[animationIndex];
+                if (animation == null)
+                    continue;
+
+                IReadOnlyList<BaseTweenClip> clips = animation.EffectiveClips;
+                for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+                {
+                    BaseTweenClip clip = clips[clipIndex];
+                    if (clip != null && clip.Enabled)
+                        CollectRect(clip.ResolveConfiguredTarget(this), rects);
+                }
+            }
+
+            foreach (RectTransform rect in rects)
+                rect.RebuildDrivenLayout();
+            Canvas.ForceUpdateCanvases();
+        }
+
+        private static void CollectRect(UnityEngine.Object source, ISet<RectTransform> output)
+        {
+            RectTransform rect = source switch
+            {
+                RectTransform direct => direct,
+                GameObject gameObject => gameObject.transform as RectTransform,
+                Component component => component.transform as RectTransform,
+                _ => null
+            };
+
+            if (rect != null)
+                output.Add(rect);
         }
 
         internal void NotifyCompleted(TweenAnimation animation)
@@ -255,6 +429,19 @@ namespace UIMotionComposer.V2
         public float NormalizedTime => Duration <= 0f ? 1f : Mathf.Clamp01(_time / Duration);
 
         public IReadOnlyList<TweenClipState> States => _states;
+
+        public UnityEngine.Object[] GetAffectedTargets()
+        {
+            var targets = new List<UnityEngine.Object>();
+            for (int i = 0; i < _states.Count; i++)
+            {
+                UnityEngine.Object target = _states[i].Target;
+                if (target != null && !targets.Contains(target))
+                    targets.Add(target);
+            }
+
+            return targets.ToArray();
+        }
 
         private TweenPlayback(TweenPlayer player, TweenAnimation animation, bool preview)
         {

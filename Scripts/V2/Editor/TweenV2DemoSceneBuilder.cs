@@ -62,6 +62,13 @@ namespace UIMotionComposer.V2.Editor
             GameObject eventSystem = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
             eventSystem.transform.SetAsLastSibling();
 
+            Canvas.ForceUpdateCanvases();
+            foreach (TweenPlayer player in canvasObject.GetComponentsInChildren<TweenPlayer>(true))
+            {
+                player.CaptureInitialValues();
+                EditorUtility.SetDirty(player);
+            }
+
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene, ScenePath))
                 throw new System.InvalidOperationException("Could not save V2 showcase scene at " + ScenePath);
@@ -92,6 +99,8 @@ namespace UIMotionComposer.V2.Editor
             TweenUITrigger[] triggers = all.SelectMany(item => item.GetComponents<TweenUITrigger>()).ToArray();
             Button[] buttons = all.SelectMany(item => item.GetComponents<Button>()).ToArray();
             Require(players.Length == 8, $"Expected 8 TweenPlayers (4 panels + 4 buttons), got {players.Length}.");
+            Require(players.All(player => player.HasCapturedInitialValues && player.CapturedInitialValueCount > 0),
+                "Every TweenPlayer must have a serialized Initial Values snapshot.");
             Require(triggers.Length == 4, $"Expected 4 UI event triggers, got {triggers.Length}.");
             Require(buttons.Length == 4, $"Expected 4 replay buttons, got {buttons.Length}.");
             Require(buttons.All(button => button.onClick.GetPersistentEventCount() == 1),

@@ -34,6 +34,9 @@ namespace UIMotionComposer
         public event Action OnInteractableChanged;
 
         public RectTransform RectTransform => transform as RectTransform;
+        public CanvasGroup CanvasGroup => _canvasGroup;
+        public bool HasStoredStartValues => hasStartValues;
+        public TempValues StoredStartValues => startValues;
 
         public abstract AnimationData CurrentHoverAnimationData { get; }
         public abstract AnimationData CurrentClickAnimationData { get; }

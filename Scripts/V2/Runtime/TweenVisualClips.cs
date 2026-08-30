@@ -90,7 +90,7 @@ namespace UIMotionComposer.V2
 
             Color current = Read(target, out RendererMetadata metadata);
             string key = MakeBindingKey(target, "Visual.Color");
-            Color initial = player.GetOrCaptureInitial(key, current);
+            Color initial = player.GetOrCaptureInitial(target, "Visual.Color", key, current);
 
             return new TweenClipState
             {

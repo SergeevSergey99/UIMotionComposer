@@ -53,8 +53,9 @@ namespace UIMotionComposer.Tweening
     /// Penner easing equations normalised to t in [0..1] -> value in [0..1] (values outside the
     /// range are expected for Back/Elastic/Bounce overshoot).
     ///
-    /// Only used by the built-in tween backend; when DOTween is installed its own evaluator runs
-    /// instead. The formulas are the same ones DOTween uses, with DOTween's default overshoot
+    /// Used by the V1 built-in fallback and by the V2 runtime/preview sampler. V1 delegates easing
+    /// to DOTween when that backend is installed; V2 always evaluates this code. The formulas are
+    /// the same ones DOTween uses, with DOTween's default overshoot
     /// (1.70158) and period (0.3), so switching backends does not change how a preset looks.
     /// </summary>
     public static class UIEaseEvaluator

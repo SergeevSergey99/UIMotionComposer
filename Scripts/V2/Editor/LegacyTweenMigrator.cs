@@ -80,6 +80,16 @@ namespace UIMotionComposer.V2.Editor
                     AddAnimation(player, TweenIds.Interactable, clickable.CurrentReturnFromDisableAnimationData);
                 }
 
+                TempValues legacyValues = panel != null && panel.HasStoredStartValues
+                    ? panel.StoredStartValues
+                    : clickable != null && clickable.HasStoredStartValues
+                        ? clickable.StoredStartValues
+                        : null;
+                if (legacyValues != null)
+                    player.ImportLegacyInitialValues(legacyValues);
+                else
+                    player.CaptureInitialValues();
+
                 EditorUtility.SetDirty(player);
                 migrated++;
             }

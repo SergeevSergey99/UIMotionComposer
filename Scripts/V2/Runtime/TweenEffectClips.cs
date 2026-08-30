@@ -18,7 +18,7 @@ namespace UIMotionComposer.V2
 
             Vector3 current = target.localScale;
             string key = MakeBindingKey(target, "Transform.LocalScale");
-            player.GetOrCaptureInitial(key, current);
+            player.GetOrCaptureInitial(target, "Transform.LocalScale", key, current);
             return new TweenClipState
             {
                 Clip = this,
@@ -70,7 +70,7 @@ namespace UIMotionComposer.V2
 
             Vector2 current = target.anchoredPosition;
             string key = MakeBindingKey(target, "RectTransform.AnchoredPosition");
-            player.GetOrCaptureInitial(key, current);
+            player.GetOrCaptureInitial(target, "RectTransform.AnchoredPosition", key, current);
             return new TweenClipState
             {
                 Clip = this,
@@ -130,7 +130,7 @@ namespace UIMotionComposer.V2
             object current = UseAnchoredPosition
                 ? ((RectTransform)target).anchoredPosition
                 : ((Transform)target).localPosition;
-            player.GetOrCaptureInitial(key, current);
+            player.GetOrCaptureInitial(target, property, key, current);
 
             return new TweenClipState
             {

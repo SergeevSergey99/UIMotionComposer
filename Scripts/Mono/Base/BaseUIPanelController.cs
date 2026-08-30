@@ -33,6 +33,8 @@ namespace UIMotionComposer
 
         public RectTransform RectTransform => transform as RectTransform;
         public CanvasGroup CanvasGroup => _canvasGroup;
+        public bool HasStoredStartValues => hasStartValues;
+        public TempValues StoredStartValues => startValues;
 
         /// <summary>The data driving the show animation, or null when the panel has none.</summary>
         public abstract AnimationData CurrentShowAnimationData { get; }

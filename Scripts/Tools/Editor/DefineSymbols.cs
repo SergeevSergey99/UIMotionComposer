@@ -34,8 +34,8 @@ namespace UIMotionComposer.Editor
         {
             Sync();
             Debug.Log(IsDoTweenPresent()
-                ? "[UI Motion Composer] DOTween detected - animations run through DOTween."
-                : "[UI Motion Composer] DOTween not found - animations run through the built-in tween engine.");
+                ? "[UI Motion Composer] DOTween detected - legacy V1 animations run through DOTween; V2 uses its canonical sampler."
+                : "[UI Motion Composer] DOTween not found - V1 and V2 use their built-in tween engines.");
         }
 
         private static void Sync()

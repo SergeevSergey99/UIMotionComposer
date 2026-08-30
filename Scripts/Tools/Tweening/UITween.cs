@@ -5,8 +5,8 @@ namespace UIMotionComposer.Tweening
     /// <summary>
     /// Entry point for every tween the UI panel system creates.
     ///
-    /// When DOTween is installed (UIMOTION_DOTWEEN, set automatically by DefineSymbols) the
-    /// calls are forwarded to DOTween so the animations live in the same engine as the rest of the
+    /// V1 tween facade. When DOTween is installed (UIMOTION_DOTWEEN, set automatically by
+    /// DefineSymbols) these calls are forwarded to DOTween so legacy animations live in the same engine as the rest of the
     /// project -- DOTween.KillAll, DOTween.timeScale and the DOTween inspector all see them. Without
     /// DOTween a small coroutine driven engine takes over and nothing else changes.
     /// </summary>

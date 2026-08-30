@@ -9,9 +9,9 @@ portable: one asset drives any panel, wherever it happens to sit on screen.
 
 Everything lives in the `UIMotionComposer` namespace (`UIMotionComposer.Inspector`,
 `UIMotionComposer.Tweening` for the support layers). The folder is self-contained: drop it into any
-Unity project and it compiles. Odin Inspector and DOTween are **optional** — when they are present
-the package uses them, when they are not it falls back to its own implementations, and the
-serialized data is identical either way.
+Unity project and it compiles. Odin Inspector is optional. DOTween is also optional for the legacy
+V1 controllers: they use it when present and fall back to the built-in sequence implementation.
+The clip-based V2 player deliberately uses its own sampler in both edit mode and runtime.
 
 ## V2: clip-based composer
 
@@ -22,7 +22,9 @@ scenes keep working while screens are migrated one at a time.
 2. Press **+ Animation**, give it an ID such as `Show`, `Hide`, `Hover` or `Click`.
 3. Press **+ Add clip** and choose clips from Transform, Rect Transform, Visual, Effects or Utility.
 4. Configure each clip's Delay and Duration. Clips overlap naturally and run on the same timeline.
-5. Scrub **Edit-mode preview** or press **Play preview**; **Restore** returns the object to the pose
+5. Press **Capture Initial Pose** once the object and its layout look right. `Initial` and
+   `Offset From Initial` keep using this serialized authoring snapshot until it is recaptured.
+6. Scrub **Edit-mode preview** or press **Play preview**; **Restore** returns the object to the pose
    captured when preview began.
 
 Add **UI Event Trigger** beside the player for no-code Hover/Unhover/Click/selection wiring. Its
@@ -38,7 +40,7 @@ Playback is available from code:
 
 ```csharp
 TweenHandle handle = tweenPlayer.Play(TweenIds.Show);
-handle.Cancel();
+handle.Stop();
 
 tweenPlayer.Play("Attention");
 tweenPlayer.Stop("Attention", complete: true);
@@ -47,6 +49,10 @@ tweenPlayer.Stop("Attention", complete: true);
 Per-animation settings select scaled/unscaled time, override/additive blending, interruption
 behaviour, restart/ping-pong loops and finite or infinite loop counts. Utility clips do not execute
 their side effects in edit-mode preview.
+
+V2 playback is intentionally independent of DOTween. `DOTween.KillAll()`, `DOTween.timeScale` and
+the DOTween inspector do not control V2 animations; use `TweenPlayer.Stop`, `StopAll`, `Complete`
+and the returned `TweenHandle`. This keeps runtime sampling identical to the inspector preview.
 
 To reuse a clip stack, create **Assets ▸ Create ▸ UI Motion Composer V2 ▸ Tween Animation** and
 assign it to an animation's **Shared clip asset** field.
@@ -57,8 +63,9 @@ The migration commands intentionally keep legacy data and components in place:
 
 * **Tools ▸ UI Motion Composer V2 ▸ Migrate selected legacy preset assets** creates new `_V2`
   `TweenAnimationAsset` files beside selected legacy presets.
-* **Tools ▸ UI Motion Composer V2 ▸ Migrate selected legacy components** adds a `TweenPlayer` and
-  converts Show/Hide/Hover/Click/Disable/Return animation data inline.
+* **Tools ▸ UI Motion Composer V2 ▸ Migrate selected legacy components** adds a `TweenPlayer`,
+  converts Show/Hide/Hover/Click/Disable/Return animation data inline and imports the controller's
+  serialized `TempValues` as the V2 Initial Pose.
 
 Position migration uses Anchor Position 3D, so old Z values and separate-axis timelines are not
 lost. Inspect and preview the result, then remove the old controller only after its callers have
@@ -74,12 +81,12 @@ the no-code hover/click trigger.
 The scene can be regenerated from **Tools ▸ UI Motion Composer V2 ▸ Rebuild V2 showcase scene** and
 validated with the adjacent **Validate V2 showcase scene** command.
 
-## How the optional dependencies are wired
+## How the optional dependencies are wired in V1
 
 | | Plugin installed | Plugin missing |
 |---|---|---|
 | Inspector | `OdinBridge` maps the package attributes onto their Sirenix equivalents; Odin draws everything | `InspectorGUI` draws the same layout with IMGUI (boxes, tabs, foldouts, conditional fields, buttons) |
-| Tweening | `DoTweenSequence` / `DoTweenTweener` forward to `DOTween.Sequence()` and `DOVirtual.Float` | `UITweenSequence` runs the same timeline from one coroutine on a hidden runner object |
+| V1 tweening | `DoTweenSequence` / `DoTweenTweener` forward to `DOTween.Sequence()` and `DOVirtual.Float` | `UITweenSequence` runs the same timeline from one coroutine on a hidden runner object |
 
 Detection:
 

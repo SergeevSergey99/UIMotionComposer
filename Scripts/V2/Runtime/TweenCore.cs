@@ -344,7 +344,7 @@ namespace UIMotionComposer.V2
 
             Vector3 current = Read(target);
             string key = MakeBindingKey(target, PropertyId);
-            Vector3 initial = player.GetOrCaptureInitial(key, current);
+            Vector3 initial = player.GetOrCaptureInitial(target, PropertyId, key, current);
 
             return new TweenClipState
             {
@@ -434,7 +434,7 @@ namespace UIMotionComposer.V2
 
             Vector2 current = Read(target);
             string key = MakeBindingKey(target, PropertyId);
-            Vector2 initial = player.GetOrCaptureInitial(key, current);
+            Vector2 initial = player.GetOrCaptureInitial(target, PropertyId, key, current);
 
             return new TweenClipState
             {
@@ -514,7 +514,7 @@ namespace UIMotionComposer.V2
 
             float current = Read(target);
             string key = MakeBindingKey(target, PropertyId);
-            float initial = player.GetOrCaptureInitial(key, current);
+            float initial = player.GetOrCaptureInitial(target, PropertyId, key, current);
 
             return new TweenClipState
             {

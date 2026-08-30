@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UIMotionComposer.Tweening;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
 namespace UIMotionComposer.V2.Editor
@@ -19,6 +21,9 @@ namespace UIMotionComposer.V2.Editor
         private bool _previewPlaying;
         private double _previewStartedAt;
         private float _previewStartedFrom;
+        private bool _previewActive;
+        private string _previewAnimationId;
+        private string _previewFingerprint;
 
         private TweenPlayer Player => (TweenPlayer)target;
 
@@ -28,11 +33,19 @@ namespace UIMotionComposer.V2.Editor
             _targetOverrides = serializedObject.FindProperty("targetOverrides");
             _playOnEnable = serializedObject.FindProperty("playOnEnable");
             EditorApplication.update += UpdatePreview;
+            EditorApplication.focusChanged += OnEditorFocusChanged;
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+            AssemblyReloadEvents.beforeAssemblyReload += StopPreview;
+            Undo.undoRedoPerformed += OnUndoRedo;
         }
 
         private void OnDisable()
         {
             EditorApplication.update -= UpdatePreview;
+            EditorApplication.focusChanged -= OnEditorFocusChanged;
+            EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+            AssemblyReloadEvents.beforeAssemblyReload -= StopPreview;
+            Undo.undoRedoPerformed -= OnUndoRedo;
             StopPreview();
         }
 
@@ -44,6 +57,7 @@ namespace UIMotionComposer.V2.Editor
                 "Add named animations, then compose each one from independent clips. Clips may overlap; Delay is measured from the animation start.",
                 MessageType.Info);
 
+            DrawInitialValuesSnapshot();
             DrawAnimationSelector();
 
             DrawValidationMessages();
@@ -64,11 +78,49 @@ namespace UIMotionComposer.V2.Editor
             {
                 EditorGUILayout.PropertyField(_targetOverrides, new GUIContent("Target overrides"), true);
                 EditorGUILayout.PropertyField(_playOnEnable, new GUIContent("Play on enable"), true);
-                if (GUILayout.Button("Clear captured initial values"))
-                    Player.ClearCapturedInitialValues();
             }
 
             serializedObject.ApplyModifiedProperties();
+            RefreshPreviewIfAuthoringChanged();
+        }
+
+        private void DrawInitialValuesSnapshot()
+        {
+            EditorGUILayout.Space(3f);
+            string status = Player.HasCapturedInitialValues
+                ? $"Initial pose saved ({Player.CapturedInitialValueCount} properties). Initial and Offset From Initial use this serialized snapshot."
+                : "Initial pose is not saved yet. Until it is captured, Initial falls back to the value at first playback.";
+            EditorGUILayout.HelpBox(status,
+                Player.HasCapturedInitialValues ? MessageType.None : MessageType.Warning);
+
+            using (new EditorGUI.DisabledScope(targets.Length != 1 || Application.isPlaying))
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button(Player.HasCapturedInitialValues
+                        ? "Recapture Initial Pose"
+                        : "Capture Initial Pose"))
+                {
+                    StopPreview();
+                    Undo.RecordObject(Player, "Capture UI Motion initial pose");
+                    Player.CaptureInitialValues();
+                    EditorUtility.SetDirty(Player);
+                    PrefabUtility.RecordPrefabInstancePropertyModifications(Player);
+                    serializedObject.Update();
+                }
+
+                using (new EditorGUI.DisabledScope(!Player.HasCapturedInitialValues))
+                {
+                    if (GUILayout.Button("Clear", GUILayout.Width(70f)))
+                    {
+                        StopPreview();
+                        Undo.RecordObject(Player, "Clear UI Motion initial pose");
+                        Player.ClearCapturedInitialValues();
+                        EditorUtility.SetDirty(Player);
+                        PrefabUtility.RecordPrefabInstancePropertyModifications(Player);
+                        serializedObject.Update();
+                    }
+                }
+            }
         }
 
         private void DrawAnimationSelector()
@@ -80,7 +132,12 @@ namespace UIMotionComposer.V2.Editor
                     .ToArray();
 
                 using (new EditorGUI.DisabledScope(names.Length == 0))
+                {
+                    EditorGUI.BeginChangeCheck();
                     _selectedAnimation = EditorGUILayout.Popup(_selectedAnimation, names, EditorStyles.toolbarPopup);
+                    if (EditorGUI.EndChangeCheck())
+                        StopPreview();
+                }
 
                 if (GUILayout.Button("+ Animation", EditorStyles.toolbarButton, GUILayout.Width(84f)))
                     AddAnimation();
@@ -200,7 +257,7 @@ namespace UIMotionComposer.V2.Editor
                 {
                     serializedObject.ApplyModifiedProperties();
                     _previewPlaying = false;
-                    Player.Preview(animationId, _previewTime);
+                    SamplePreview(animationId, _previewTime);
                     SceneView.RepaintAll();
                 }
 
@@ -217,6 +274,7 @@ namespace UIMotionComposer.V2.Editor
                             _previewTime = _previewStartedFrom;
                             _previewStartedAt = EditorApplication.timeSinceStartup;
                             _previewPlaying = true;
+                            SamplePreview(animationId, _previewTime);
                         }
                     }
 
@@ -234,7 +292,7 @@ namespace UIMotionComposer.V2.Editor
             float duration = Mathf.Max(0.01f, Player.GetDuration(CurrentAnimationId()));
             _previewTime = Mathf.Clamp01(_previewStartedFrom +
                                          (float)(EditorApplication.timeSinceStartup - _previewStartedAt) / duration);
-            Player.Preview(CurrentAnimationId(), _previewTime);
+            SamplePreview(CurrentAnimationId(), _previewTime);
             Repaint();
             SceneView.RepaintAll();
 
@@ -247,7 +305,71 @@ namespace UIMotionComposer.V2.Editor
             _previewPlaying = false;
             if (target != null)
                 Player.StopPreview();
+            _previewActive = false;
+            _previewAnimationId = null;
+            _previewFingerprint = null;
             SceneView.RepaintAll();
+        }
+
+        private void SamplePreview(string animationId, float normalizedTime)
+        {
+            if (!_previewActive || !string.Equals(_previewAnimationId, animationId, StringComparison.Ordinal))
+            {
+                StopPreview();
+                UnityEngine.Object[] affectedTargets = Player.PreparePreview(animationId);
+                if (affectedTargets.Length == 0)
+                    return;
+
+                Undo.RegisterCompleteObjectUndo(affectedTargets, "Preview UI Motion animation");
+                _previewActive = true;
+                _previewAnimationId = animationId;
+                _previewFingerprint = AuthoringFingerprint(animationId);
+            }
+
+            Player.SamplePreparedPreview(normalizedTime);
+        }
+
+        private void RefreshPreviewIfAuthoringChanged()
+        {
+            if (!_previewActive || target == null)
+                return;
+
+            string fingerprint = AuthoringFingerprint(_previewAnimationId);
+            if (string.Equals(_previewFingerprint, fingerprint, StringComparison.Ordinal))
+                return;
+
+            string animationId = _previewAnimationId;
+            float normalizedTime = _previewTime;
+            StopPreview();
+            SamplePreview(animationId, normalizedTime);
+            SceneView.RepaintAll();
+        }
+
+        private string AuthoringFingerprint(string animationId)
+        {
+            string fingerprint = EditorJsonUtility.ToJson(Player);
+            TweenAnimation animation = Player.FindAnimation(animationId);
+            if (animation?.Asset != null)
+                fingerprint += EditorJsonUtility.ToJson(animation.Asset);
+            return fingerprint;
+        }
+
+        private void OnEditorFocusChanged(bool hasFocus)
+        {
+            if (!hasFocus)
+                StopPreview();
+        }
+
+        private void OnPlayModeStateChanged(PlayModeStateChange change)
+        {
+            StopPreview();
+        }
+
+        private void OnUndoRedo()
+        {
+            StopPreview();
+            if (target != null)
+                Player.InvalidateAuthoringCache();
         }
 
         private string CurrentAnimationId()
@@ -466,6 +588,7 @@ namespace UIMotionComposer.V2.Editor
                             continue;
                         EditorGUILayout.PropertyField(child, true);
                     }
+                    DrawEasePreview(clip);
                     EditorGUI.indentLevel--;
                 }
             }
@@ -473,17 +596,101 @@ namespace UIMotionComposer.V2.Editor
 
         private static void ShowAddMenu(SerializedObject owner, SerializedProperty clips)
         {
-            var menu = new GenericMenu();
-            IEnumerable<Type> types = TypeCache.GetTypesDerivedFrom<BaseTweenClip>()
+            Type[] types = TypeCache.GetTypesDerivedFrom<BaseTweenClip>()
                 .Where(type => !type.IsAbstract && type.GetConstructor(Type.EmptyTypes) != null)
-                .OrderBy(MenuPath);
+                .OrderBy(MenuPath)
+                .ToArray();
+            var dropdown = new TweenClipDropdown(new AdvancedDropdownState(), owner, clips.propertyPath, types);
+            dropdown.Show(GUILayoutUtility.GetLastRect());
+        }
 
-            foreach (Type type in types)
+        private static void DrawEasePreview(SerializedProperty clip)
+        {
+            SerializedProperty useCustom = clip.FindPropertyRelative("UseCustomCurve");
+            SerializedProperty custom = clip.FindPropertyRelative("CustomCurve");
+            SerializedProperty ease = clip.FindPropertyRelative("Ease");
+            if (useCustom == null || custom == null || ease == null)
+                return;
+
+            Rect rect = EditorGUILayout.GetControlRect(false, 54f);
+            rect = EditorGUI.IndentedRect(rect);
+            EditorGUI.DrawRect(rect, new Color(0.10f, 0.11f, 0.13f, 0.75f));
+
+            const int samples = 48;
+            var values = new float[samples + 1];
+            float min = 0f;
+            float max = 1f;
+            for (int i = 0; i <= samples; i++)
             {
-                Type captured = type;
-                menu.AddItem(new GUIContent(MenuPath(type)), false, () => Add(owner, clips.propertyPath, captured));
+                float t = i / (float)samples;
+                values[i] = useCustom.boolValue
+                    ? custom.animationCurveValue.Evaluate(t)
+                    : UIEaseEvaluator.Evaluate((UIEase)ease.enumValueIndex, t);
+                min = Mathf.Min(min, values[i]);
+                max = Mathf.Max(max, values[i]);
             }
-            menu.ShowAsContext();
+
+            float range = Mathf.Max(0.001f, max - min);
+            Handles.BeginGUI();
+            Color oldColor = Handles.color;
+            Handles.color = new Color(1f, 1f, 1f, 0.13f);
+            float zeroY = Mathf.Lerp(rect.yMax - 3f, rect.y + 3f, (0f - min) / range);
+            float oneY = Mathf.Lerp(rect.yMax - 3f, rect.y + 3f, (1f - min) / range);
+            Handles.DrawLine(new Vector3(rect.x + 3f, zeroY), new Vector3(rect.xMax - 3f, zeroY));
+            Handles.DrawLine(new Vector3(rect.x + 3f, oneY), new Vector3(rect.xMax - 3f, oneY));
+
+            var points = new Vector3[samples + 1];
+            for (int i = 0; i <= samples; i++)
+            {
+                float x = Mathf.Lerp(rect.x + 3f, rect.xMax - 3f, i / (float)samples);
+                float y = Mathf.Lerp(rect.yMax - 3f, rect.y + 3f, (values[i] - min) / range);
+                points[i] = new Vector3(x, y);
+            }
+
+            Handles.color = new Color(0.36f, 0.62f, 1f, 1f);
+            Handles.DrawAAPolyLine(2f, points);
+            Handles.color = oldColor;
+            Handles.EndGUI();
+        }
+
+        private sealed class TweenClipDropdown : AdvancedDropdown
+        {
+            private readonly SerializedObject _owner;
+            private readonly string _path;
+            private readonly Type[] _types;
+
+            public TweenClipDropdown(AdvancedDropdownState state, SerializedObject owner,
+                string path, Type[] types) : base(state)
+            {
+                _owner = owner;
+                _path = path;
+                _types = types;
+                minimumSize = new Vector2(310f, 360f);
+            }
+
+            protected override AdvancedDropdownItem BuildRoot()
+            {
+                var root = new AdvancedDropdownItem("Add Tween Clip");
+                foreach (Type type in _types)
+                    root.AddChild(new TweenClipDropdownItem(MenuPath(type), type));
+                return root;
+            }
+
+            protected override void ItemSelected(AdvancedDropdownItem item)
+            {
+                if (item is TweenClipDropdownItem clipItem)
+                    Add(_owner, _path, clipItem.Type);
+            }
+        }
+
+        private sealed class TweenClipDropdownItem : AdvancedDropdownItem
+        {
+            public Type Type { get; }
+
+            public TweenClipDropdownItem(string name, Type type) : base(name)
+            {
+                Type = type;
+            }
         }
 
         private static void ShowContext(SerializedObject owner, SerializedProperty clips, int index, BaseTweenClip value)
