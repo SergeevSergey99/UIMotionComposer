@@ -27,6 +27,11 @@ scenes keep working while screens are migrated one at a time.
 6. Scrub **Edit-mode preview** or press **Play preview**; **Restore** returns the object to the pose
    captured when preview began.
 
+Edit-mode preview owns an isolated Unity Animation Mode driver. Registered animated properties are
+restored by Unity without adding preview entries to the normal Undo history; non-animatable values
+use TweenPlayer's exact snapshot restoration. If the Animation window, Timeline or another preview
+driver is already active, TweenPlayer waits until that mode is closed rather than taking it over.
+
 Add **UI Event Trigger** beside the player for no-code Hover/Unhover/Click/selection wiring. Its
 inspector shows the animation IDs currently available on that player and flags missing IDs.
 

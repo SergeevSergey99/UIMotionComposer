@@ -25,7 +25,7 @@ namespace UIMotionComposer.V2.Editor
         private string _previewAnimationId;
         private int _previewFingerprint;
         private SerializedObject _previewAssetSource;
-        private readonly HashSet<UnityEngine.Object> _previewUndoTargets = new HashSet<UnityEngine.Object>();
+        private TweenPreviewAnimationMode _previewAnimationMode;
 
         private TweenPlayer Player => (TweenPlayer)target;
 
@@ -49,6 +49,8 @@ namespace UIMotionComposer.V2.Editor
             AssemblyReloadEvents.beforeAssemblyReload -= StopPreview;
             Undo.undoRedoPerformed -= OnUndoRedo;
             StopPreview();
+            _previewAnimationMode?.Dispose();
+            _previewAnimationMode = null;
             DisposeAssetSource();
         }
 
@@ -308,10 +310,10 @@ namespace UIMotionComposer.V2.Editor
             _previewPlaying = false;
             if (target != null)
                 Player.StopPreview();
+            _previewAnimationMode?.Stop();
             _previewActive = false;
             _previewAnimationId = null;
             _previewFingerprint = 0;
-            _previewUndoTargets.Clear();
             SceneView.RepaintAll();
         }
 
@@ -324,7 +326,15 @@ namespace UIMotionComposer.V2.Editor
                 if (affectedTargets.Length == 0)
                     return;
 
-                RegisterPreviewUndo(affectedTargets);
+                _previewAnimationMode ??= new TweenPreviewAnimationMode();
+                if (!_previewAnimationMode.TryStart())
+                {
+                    Player.StopPreview();
+                    Debug.LogWarning("[UI Motion Composer] Preview cannot start while another Animation Mode driver is active.", Player);
+                    return;
+                }
+
+                _previewAnimationMode.RegisterTargets(affectedTargets);
                 _previewActive = true;
                 _previewAnimationId = animationId;
                 _previewFingerprint = AuthoringFingerprint(animationId);
@@ -362,34 +372,19 @@ namespace UIMotionComposer.V2.Editor
                 return;
             }
 
-            // Retargeting a clip mid-session can pull in an object the session never recorded.
-            RegisterPreviewUndo(affectedTargets);
+            // Retargeting a clip mid-session can pull in an object the session never registered.
+            _previewAnimationMode?.RegisterTargets(affectedTargets);
             _previewFingerprint = AuthoringFingerprint(animationId);
             Player.SamplePreparedPreview(normalizedTime);
             SceneView.RepaintAll();
-        }
-
-        private void RegisterPreviewUndo(UnityEngine.Object[] affectedTargets)
-        {
-            UnityEngine.Object[] pending = affectedTargets
-                .Where(candidate => candidate != null && !_previewUndoTargets.Contains(candidate))
-                .ToArray();
-
-            if (pending.Length == 0)
-                return;
-
-            Undo.RegisterCompleteObjectUndo(pending, "Preview UI Motion animation");
-            foreach (UnityEngine.Object candidate in pending)
-                _previewUndoTargets.Add(candidate);
         }
 
         /// <summary>
         /// Hash of everything one preview sample reads: the selected animation's clips, its playback
         /// settings, and the shared asset's clips when one is assigned.
         ///
-        /// Walks the SerializedProperty tree rather than serialising to JSON, because JsonUtility
-        /// does not round-trip [SerializeReference] — a JSON fingerprint never sees a clip edit,
-        /// which is the one change this refresh exists to catch.
+        /// Walks the SerializedProperty tree without allocating a JSON representation every
+        /// inspector repaint, and explicitly includes managed-reference types and shared assets.
         /// </summary>
         private int AuthoringFingerprint(string animationId)
         {
@@ -915,9 +910,8 @@ namespace UIMotionComposer.V2.Editor
     /// <summary>
     /// Content hash of a SerializedProperty subtree.
     ///
-    /// Deliberately not EditorJsonUtility.ToJson: JsonUtility does not round-trip
-    /// [SerializeReference], so a JSON fingerprint is blind to every clip edit -- which is the one
-    /// change the preview refresh exists to catch. TweenV2Validation covers that case.
+    /// A property walk avoids allocating an intermediate JSON string on every inspector repaint
+    /// and lets the preview explicitly include managed-reference types and shared assets.
     /// </summary>
     internal static class TweenAuthoringFingerprint
     {
@@ -1008,6 +1002,8 @@ namespace UIMotionComposer.V2.Editor
                 return 0;
 
             int hash = 17;
+            hash = Combine(hash, (int)curve.preWrapMode);
+            hash = Combine(hash, (int)curve.postWrapMode);
             Keyframe[] keys = curve.keys;
             hash = Combine(hash, keys.Length);
 
@@ -1017,9 +1013,94 @@ namespace UIMotionComposer.V2.Editor
                 hash = Combine(hash, keys[i].value.GetHashCode());
                 hash = Combine(hash, keys[i].inTangent.GetHashCode());
                 hash = Combine(hash, keys[i].outTangent.GetHashCode());
+                hash = Combine(hash, keys[i].inWeight.GetHashCode());
+                hash = Combine(hash, keys[i].outWeight.GetHashCode());
+                hash = Combine(hash, (int)keys[i].weightedMode);
             }
 
             return hash;
+        }
+    }
+
+    /// <summary>
+    /// Owns an isolated Unity Animation Mode driver for inspector preview. Registered animatable
+    /// properties are restored by Unity without adding no-op entries to the user's Undo history;
+    /// non-animatable values are still restored by TweenPlayback's exact captured state.
+    /// </summary>
+    internal sealed class TweenPreviewAnimationMode : IDisposable
+    {
+        private AnimationModeDriver _driver;
+        private readonly HashSet<UnityEngine.Object> _registeredTargets = new HashSet<UnityEngine.Object>();
+
+        public bool IsActive => _driver != null && UnityEditor.AnimationMode.InAnimationMode(_driver);
+
+        public bool TryStart()
+        {
+            if (IsActive)
+                return true;
+
+            // Never steal or stop the Animation window, Timeline, or another custom previewer.
+            if (UnityEditor.AnimationMode.InAnimationMode())
+                return false;
+
+            DestroyDriver();
+            _registeredTargets.Clear();
+            _driver = ScriptableObject.CreateInstance<AnimationModeDriver>();
+            _driver.name = "UI Motion Composer Preview";
+            _driver.hideFlags = HideFlags.HideAndDontSave;
+            UnityEditor.AnimationMode.StartAnimationMode(_driver);
+            return IsActive;
+        }
+
+        public void RegisterTargets(IEnumerable<UnityEngine.Object> targets)
+        {
+            if (!IsActive || targets == null)
+                return;
+
+            foreach (UnityEngine.Object target in targets)
+            {
+                if (target == null || !_registeredTargets.Add(target))
+                    continue;
+
+                GameObject gameObject = target switch
+                {
+                    GameObject direct => direct,
+                    Component component => component.gameObject,
+                    _ => null
+                };
+                if (gameObject == null)
+                    continue;
+
+                EditorCurveBinding[] bindings = AnimationUtility.GetAnimatableBindings(gameObject, gameObject);
+                for (int i = 0; i < bindings.Length; i++)
+                {
+                    UnityEngine.Object animatedObject = AnimationUtility.GetAnimatedObject(gameObject, bindings[i]);
+                    if (animatedObject == target || target is GameObject && animatedObject == gameObject)
+                        UnityEditor.AnimationMode.AddEditorCurveBinding(gameObject, bindings[i]);
+                }
+            }
+        }
+
+        public void Stop()
+        {
+            if (IsActive)
+                UnityEditor.AnimationMode.StopAnimationMode(_driver);
+            _registeredTargets.Clear();
+        }
+
+        public void Dispose()
+        {
+            Stop();
+            DestroyDriver();
+        }
+
+        private void DestroyDriver()
+        {
+            if (_driver == null)
+                return;
+
+            UnityEngine.Object.DestroyImmediate(_driver);
+            _driver = null;
         }
     }
 }

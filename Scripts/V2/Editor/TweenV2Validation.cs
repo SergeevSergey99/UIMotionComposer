@@ -116,6 +116,7 @@ namespace UIMotionComposer.V2.Editor
                 Require(Mathf.Abs(migrated[0].Duration - 1f) < 0.001f, "Legacy duration migration failed.");
 
                 ValidateAuthoringFingerprint(player);
+                ValidateAnimationModeRestore(rect);
 
                 Debug.Log("[UI Motion Composer] V2 smoke tests passed.");
             }
@@ -129,10 +130,8 @@ namespace UIMotionComposer.V2.Editor
         }
 
         /// <summary>
-        /// The preview refresh only fires when the authoring fingerprint changes, so a fingerprint
-        /// blind to clip edits silently reinstates the stale-preview bug. EditorJsonUtility.ToJson
-        /// is exactly that blind — it does not round-trip [SerializeReference] — which is why this
-        /// asserts against the SerializedProperty walk and pins the JSON approach as unusable.
+        /// The preview refresh only fires when the authoring fingerprint changes, so this pins the
+        /// managed-reference value, type and weighted-curve cases that the inspector must observe.
         /// </summary>
         private static void ValidateAuthoringFingerprint(TweenPlayer player)
         {
@@ -161,19 +160,11 @@ namespace UIMotionComposer.V2.Editor
                 }
 
                 int beforeValueEdit = Fingerprint();
-                string jsonBefore = EditorJsonUtility.ToJson(player);
-
                 clip.ToValue = new Vector2(400f, 0f);
 
                 Require(Fingerprint() != beforeValueEdit,
                     "Authoring fingerprint did not change after editing a [SerializeReference] clip. " +
                     "Preview would keep sampling stale From/To values.");
-
-                if (EditorJsonUtility.ToJson(player) == jsonBefore)
-                {
-                    Debug.Log("[UI Motion Composer] Confirmed: EditorJsonUtility.ToJson is blind to " +
-                              "clip edits. Do not use it for the preview fingerprint.");
-                }
 
                 // A clip swapped for another type keeps its property path; only the type name moves.
                 int beforeTypeSwap = Fingerprint();
@@ -186,10 +177,49 @@ namespace UIMotionComposer.V2.Editor
 
                 Require(Fingerprint() != beforeTypeSwap,
                     "Authoring fingerprint did not change after swapping the clip type.");
+
+                var curveClip = (ScaleTweenClip)player.AnimationDefinitions[0].Clips[0];
+                curveClip.UseCustomCurve = true;
+                curveClip.CustomCurve = new AnimationCurve(
+                    new Keyframe(0f, 0f),
+                    new Keyframe(1f, 1f));
+
+                int beforeWeightedCurve = Fingerprint();
+                Keyframe[] keys = curveClip.CustomCurve.keys;
+                keys[0].weightedMode = WeightedMode.Out;
+                keys[0].outWeight = 0.72f;
+                curveClip.CustomCurve.keys = keys;
+                Require(Fingerprint() != beforeWeightedCurve,
+                    "Authoring fingerprint did not change after editing a curve weight.");
+
+                int beforeWrapMode = Fingerprint();
+                curveClip.CustomCurve.postWrapMode = WrapMode.PingPong;
+                Require(Fingerprint() != beforeWrapMode,
+                    "Authoring fingerprint did not change after editing a curve wrap mode.");
             }
 
             player.AnimationDefinitions.Clear();
             player.InvalidateAuthoringCache();
+        }
+
+        private static void ValidateAnimationModeRestore(RectTransform rect)
+        {
+            Vector2 original = new Vector2(31f, -47f);
+            rect.anchoredPosition = original;
+            int undoGroup = Undo.GetCurrentGroup();
+
+            using (var previewMode = new TweenPreviewAnimationMode())
+            {
+                Require(previewMode.TryStart(), "Could not start the isolated preview Animation Mode.");
+                previewMode.RegisterTargets(new UnityEngine.Object[] { rect });
+                rect.anchoredPosition = new Vector2(900f, 600f);
+                previewMode.Stop();
+            }
+
+            Require(Vector2.Distance(rect.anchoredPosition, original) < 0.001f,
+                "Animation Mode did not restore the previewed RectTransform.");
+            Require(Undo.GetCurrentGroup() == undoGroup,
+                "Animation Mode preview unexpectedly added an Undo group.");
         }
 
         private static void Require(bool condition, string message)
