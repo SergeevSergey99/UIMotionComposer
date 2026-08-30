@@ -7,6 +7,7 @@ using UnityEngine.EventSystems;
 
 namespace UIMotionComposer
 {
+    [RequireComponent(typeof(CanvasGroup))]
     [RequireComponent(typeof(RectTransform))]
     public abstract class BaseUIClickableController : MonoBehaviour,
         IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
@@ -57,6 +58,9 @@ namespace UIMotionComposer
 
         protected virtual void Awake()
         {
+            if (_canvasGroup == null)
+                _canvasGroup = GetComponent<CanvasGroup>();
+
             InitializeHandlers();
             StoreInitialValues();
             _wasInteractable = _canvasGroup.interactable;

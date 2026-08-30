@@ -50,6 +50,9 @@ namespace UIMotionComposer
 
         protected virtual void Awake()
         {
+            if (_canvasGroup == null)
+                _canvasGroup = GetComponent<CanvasGroup>();
+
             StoreInitialValues();
         }
 

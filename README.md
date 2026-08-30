@@ -13,6 +13,67 @@ Unity project and it compiles. Odin Inspector and DOTween are **optional** — w
 the package uses them, when they are not it falls back to its own implementations, and the
 serialized data is identical either way.
 
+## V2: clip-based composer
+
+`TweenPlayer` is the new authoring workflow. It lives next to the legacy controllers, so existing
+scenes keep working while screens are migrated one at a time.
+
+1. Add **UI Motion Composer V2/Tween Player** to a UI object.
+2. Press **+ Animation**, give it an ID such as `Show`, `Hide`, `Hover` or `Click`.
+3. Press **+ Add clip** and choose clips from Transform, Rect Transform, Visual, Effects or Utility.
+4. Configure each clip's Delay and Duration. Clips overlap naturally and run on the same timeline.
+5. Scrub **Edit-mode preview** or press **Play preview**; **Restore** returns the object to the pose
+   captured when preview began.
+
+Add **UI Event Trigger** beside the player for no-code Hover/Unhover/Click/selection wiring. Its
+inspector shows the animation IDs currently available on that player and flags missing IDs.
+
+The clip stack supports move, local/world rotation, scale, anchor position 2D/3D, size, pivot,
+fade, color, image fill, punch, shake, jump, events, GameObject toggles, nested animation playback,
+text reveal and numeric text counters. A clip can target the player object, a direct object, or a
+named override in **Targets and automatic playback**. Named overrides make shared animation assets
+portable between prefabs.
+
+Playback is available from code:
+
+```csharp
+TweenHandle handle = tweenPlayer.Play(TweenIds.Show);
+handle.Cancel();
+
+tweenPlayer.Play("Attention");
+tweenPlayer.Stop("Attention", complete: true);
+```
+
+Per-animation settings select scaled/unscaled time, override/additive blending, interruption
+behaviour, restart/ping-pong loops and finite or infinite loop counts. Utility clips do not execute
+their side effects in edit-mode preview.
+
+To reuse a clip stack, create **Assets ▸ Create ▸ UI Motion Composer V2 ▸ Tween Animation** and
+assign it to an animation's **Shared clip asset** field.
+
+### Migrating legacy content
+
+The migration commands intentionally keep legacy data and components in place:
+
+* **Tools ▸ UI Motion Composer V2 ▸ Migrate selected legacy preset assets** creates new `_V2`
+  `TweenAnimationAsset` files beside selected legacy presets.
+* **Tools ▸ UI Motion Composer V2 ▸ Migrate selected legacy components** adds a `TweenPlayer` and
+  converts Show/Hide/Hover/Click/Disable/Return animation data inline.
+
+Position migration uses Anchor Position 3D, so old Z values and separate-axis timelines are not
+lost. Inspect and preview the result, then remove the old controller only after its callers have
+been switched to `TweenPlayer`.
+
+### V2 showcase scene
+
+Open `Examples/V2/UIMotionComposerV2Showcase.unity` and enter Play Mode. The scene contains four
+editable examples: a slide panel, a pop/modal panel, a shake alert and a HUD with a numeric counter
+and filled progress image. Every panel plays `Show` on enable; each Replay button also demonstrates
+the no-code hover/click trigger.
+
+The scene can be regenerated from **Tools ▸ UI Motion Composer V2 ▸ Rebuild V2 showcase scene** and
+validated with the adjacent **Validate V2 showcase scene** command.
+
 ## How the optional dependencies are wired
 
 | | Plugin installed | Plugin missing |
