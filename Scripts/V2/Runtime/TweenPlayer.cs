@@ -282,6 +282,11 @@ namespace UIMotionComposer.V2
                     if (entry != null && entry.Key == key && entry.Target != null)
                         return entry.Target;
                 }
+
+                // A named slot is an explicit target contract. Falling back to this GameObject when
+                // a shared asset forgot its binding animates the wrong object and is very difficult
+                // to diagnose. Inline clips may still provide a direct fallback deliberately.
+                return directTarget;
             }
 
             return directTarget != null ? directTarget : gameObject;

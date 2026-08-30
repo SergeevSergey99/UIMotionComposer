@@ -71,6 +71,8 @@ namespace UIMotionComposer.V2.Editor
                 Require(Mathf.Abs(canvasGroup.alpha - 0.8f) < 0.001f,
                     "Preview did not restore alpha.");
 
+                ValidateTargetSlot(player, animation, canvasGroup);
+
                 animation.Clips.Clear();
                 animation.Clips.Add(new AnchorPositionTweenClip
                 {
@@ -127,6 +129,49 @@ namespace UIMotionComposer.V2.Editor
                 if (animationAsset != null)
                     UnityEngine.Object.DestroyImmediate(animationAsset);
             }
+        }
+
+        private static void ValidateTargetSlot(TweenPlayer player, TweenAnimation animation,
+            CanvasGroup playerCanvasGroup)
+        {
+            var child = new GameObject("Content", typeof(RectTransform), typeof(CanvasGroup));
+            child.transform.SetParent(player.transform, false);
+            CanvasGroup childCanvasGroup = child.GetComponent<CanvasGroup>();
+            childCanvasGroup.alpha = 0.2f;
+            playerCanvasGroup.alpha = 0.8f;
+
+            animation.Clips.Clear();
+            animation.Clips.Add(new FadeTweenClip
+            {
+                TargetKey = "Content",
+                FadeTarget = TweenFadeTarget.CanvasGroup,
+                FromMode = TweenEndpointMode.Custom,
+                FromValue = 0f,
+                ToMode = TweenEndpointMode.Custom,
+                ToValue = 1f,
+                Ease = UIEase.Linear,
+                Duration = 1f
+            });
+
+            player.TargetOverrideDefinitions.Clear();
+            Require(player.PreparePreview("Validation").Length == 0,
+                "An unbound target slot unexpectedly fell back to the TweenPlayer root.");
+            player.StopPreview();
+
+            player.TargetOverrideDefinitions.Add(new TweenTargetOverride
+            {
+                Key = "Content",
+                Target = child
+            });
+            Require(player.PreparePreview("Validation").Length == 1,
+                "A bound target slot did not resolve its player-local object.");
+            Require(player.SamplePreparedPreview(0.5f), "A bound target slot could not be sampled.");
+            Require(Mathf.Abs(childCanvasGroup.alpha - 0.5f) < 0.001f,
+                "A bound target slot animated the wrong object.");
+            Require(Mathf.Abs(playerCanvasGroup.alpha - 0.8f) < 0.001f,
+                "A bound target slot changed the TweenPlayer root.");
+            player.StopPreview();
+            player.TargetOverrideDefinitions.Clear();
         }
 
         /// <summary>

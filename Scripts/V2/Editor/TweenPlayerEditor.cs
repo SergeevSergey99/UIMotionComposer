@@ -82,7 +82,10 @@ namespace UIMotionComposer.V2.Editor
             _showAdvanced = EditorGUILayout.Foldout(_showAdvanced, "Targets and automatic playback", true);
             if (_showAdvanced)
             {
-                EditorGUILayout.PropertyField(_targetOverrides, new GUIContent("Target overrides"), true);
+                EditorGUILayout.HelpBox(
+                    "Advanced view of every local target binding, including unused entries. Shared assets declare slots; this player supplies the scene or prefab objects.",
+                    MessageType.None);
+                EditorGUILayout.PropertyField(_targetOverrides, new GUIContent("All target bindings"), true);
                 EditorGUILayout.PropertyField(_playOnEnable, new GUIContent("Play on enable"), true);
             }
 
@@ -186,8 +189,11 @@ namespace UIMotionComposer.V2.Editor
                     {
                         TweenTimelineEditor.Draw(assetSource, sharedClips, _previewTime,
                             normalized => ScrubTimeline(id.stringValue, normalized));
+                        DrawTargetBindings(sharedClips);
                     }
-                    EditorGUILayout.HelpBox("Timing comes from the shared asset. Dragging its timeline edits that asset for every player using it.", MessageType.None);
+                    EditorGUILayout.HelpBox(
+                        "Timing and target slot names come from the shared asset. Their concrete objects are stored locally on this TweenPlayer.",
+                        MessageType.None);
                     if (GUILayout.Button("Select shared animation asset"))
                         Selection.activeObject = asset.objectReferenceValue;
                 }
@@ -196,6 +202,7 @@ namespace UIMotionComposer.V2.Editor
                     TweenTimelineEditor.Draw(serializedObject, clips, _previewTime,
                         normalized => ScrubTimeline(id.stringValue, normalized));
                     TweenClipEditorUtility.DrawClipList(serializedObject, clips, "Clips");
+                    DrawTargetBindings(clips);
                 }
 
                 DrawPreview(id.stringValue);
@@ -211,6 +218,118 @@ namespace UIMotionComposer.V2.Editor
                     EditorGUILayout.PropertyField(cancelled);
                 }
             }
+        }
+
+        private void DrawTargetBindings(SerializedProperty clips)
+        {
+            List<string> keys = TweenClipEditorUtility.CollectTargetKeys(clips);
+            if (keys.Count == 0)
+                return;
+
+            EditorGUILayout.Space(4f);
+            EditorGUILayout.LabelField("Target bindings", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "The animation stores portable slot names. Assign the concrete object for this player here. A missing slot is skipped instead of animating the player root by mistake.",
+                MessageType.Info);
+
+            if (targets.Length != 1)
+            {
+                EditorGUILayout.HelpBox("Edit target bindings on one TweenPlayer at a time.", MessageType.None);
+                return;
+            }
+
+            bool hasMissing = false;
+            foreach (string key in keys)
+            {
+                int index = FindTargetBinding(key);
+                SerializedProperty targetProperty = index >= 0
+                    ? _targetOverrides.GetArrayElementAtIndex(index).FindPropertyRelative("Target")
+                    : null;
+                UnityEngine.Object current = targetProperty?.objectReferenceValue;
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUI.BeginChangeCheck();
+                    UnityEngine.Object next = EditorGUILayout.ObjectField(
+                        new GUIContent(key, $"Object used by the '{key}' target slot."),
+                        current, typeof(UnityEngine.Object), true);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        if (index < 0)
+                        {
+                            index = _targetOverrides.arraySize;
+                            _targetOverrides.InsertArrayElementAtIndex(index);
+                            SerializedProperty entry = _targetOverrides.GetArrayElementAtIndex(index);
+                            entry.FindPropertyRelative("Key").stringValue = key;
+                            entry.FindPropertyRelative("Target").objectReferenceValue = next;
+                        }
+                        else
+                        {
+                            targetProperty.objectReferenceValue = next;
+                        }
+                    }
+
+                    using (new EditorGUI.DisabledScope(current != null))
+                    {
+                        if (GUILayout.Button("Find", GUILayout.Width(42f)))
+                        {
+                            GameObject found = FindChildForSlot(key);
+                            if (found != null)
+                            {
+                                if (index < 0)
+                                {
+                                    index = _targetOverrides.arraySize;
+                                    _targetOverrides.InsertArrayElementAtIndex(index);
+                                    SerializedProperty entry = _targetOverrides.GetArrayElementAtIndex(index);
+                                    entry.FindPropertyRelative("Key").stringValue = key;
+                                    targetProperty = entry.FindPropertyRelative("Target");
+                                }
+                                targetProperty.objectReferenceValue = found;
+                            }
+                        }
+                    }
+                }
+
+                if ((index < 0 || _targetOverrides.GetArrayElementAtIndex(index)
+                        .FindPropertyRelative("Target").objectReferenceValue == null))
+                    hasMissing = true;
+            }
+
+            if (hasMissing)
+                EditorGUILayout.HelpBox("One or more target slots are not bound. Their clips will be skipped.", MessageType.Warning);
+        }
+
+        private int FindTargetBinding(string key)
+        {
+            for (int i = 0; i < _targetOverrides.arraySize; i++)
+            {
+                SerializedProperty entry = _targetOverrides.GetArrayElementAtIndex(i);
+                if (string.Equals(entry.FindPropertyRelative("Key").stringValue, key,
+                        StringComparison.Ordinal))
+                    return i;
+            }
+
+            return -1;
+        }
+
+        private GameObject FindChildForSlot(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            Transform root = Player.transform;
+            Transform byPath = root.Find(key);
+            if (byPath != null)
+                return byPath.gameObject;
+
+            Transform[] descendants = root.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < descendants.Length; i++)
+            {
+                if (string.Equals(descendants[i].name, key, StringComparison.Ordinal))
+                    return descendants[i].gameObject;
+            }
+
+            return null;
         }
 
         private void DrawValidationMessages()
@@ -571,7 +690,9 @@ namespace UIMotionComposer.V2.Editor
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
-            EditorGUILayout.HelpBox("Reusable clip stack. Timing is relative to the beginning of any animation that references this asset.", MessageType.Info);
+            EditorGUILayout.HelpBox(
+                "Reusable clip stack. A ScriptableObject cannot reference objects from a scene. Leave Target Slot empty to animate the TweenPlayer root, or enter a portable slot name (for example Content or Icon) and bind it on each TweenPlayer.",
+                MessageType.Info);
             SerializedProperty clips = serializedObject.FindProperty("Clips");
             TweenTimelineEditor.Draw(serializedObject, clips);
             TweenClipEditorUtility.DrawClipList(serializedObject, clips, "Shared clips");
@@ -663,6 +784,25 @@ namespace UIMotionComposer.V2.Editor
             }
         }
 
+        public static List<string> CollectTargetKeys(SerializedProperty clips)
+        {
+            var result = new List<string>();
+            var unique = new HashSet<string>(StringComparer.Ordinal);
+            if (clips == null || !clips.isArray)
+                return result;
+
+            for (int i = 0; i < clips.arraySize; i++)
+            {
+                SerializedProperty key = clips.GetArrayElementAtIndex(i)
+                    .FindPropertyRelative("TargetKey");
+                string value = key?.stringValue?.Trim();
+                if (!string.IsNullOrEmpty(value) && unique.Add(value))
+                    result.Add(value);
+            }
+
+            return result;
+        }
+
         private static void DrawClip(SerializedObject owner, SerializedProperty clips, SerializedProperty clip, int index)
         {
             if (clip.managedReferenceValue == null)
@@ -707,6 +847,39 @@ namespace UIMotionComposer.V2.Editor
                             continue;
                         if (!ShouldDraw(clip, child.name))
                             continue;
+
+                        bool sharedAsset = owner.targetObject is TweenAnimationAsset;
+                        if (child.name == "Target" && sharedAsset)
+                        {
+                            if (child.objectReferenceValue != null)
+                            {
+                                EditorGUILayout.HelpBox(
+                                    "This shared clip contains a legacy direct target. Clear it and use Target Slot so every player can provide its own object.",
+                                    MessageType.Warning);
+                                using (new EditorGUI.DisabledScope(true))
+                                    EditorGUILayout.PropertyField(child, new GUIContent("Legacy direct target"));
+                                if (GUILayout.Button("Clear direct target"))
+                                    child.objectReferenceValue = null;
+                            }
+                            continue;
+                        }
+
+                        if (child.name == "TargetKey")
+                        {
+                            GUIContent labelContent = sharedAsset
+                                ? new GUIContent("Target Slot", "Portable slot name bound on each TweenPlayer. Empty means the TweenPlayer root.")
+                                : new GUIContent("Target Slot", "Optional named binding on this TweenPlayer. It overrides Direct Target.");
+                            EditorGUILayout.PropertyField(child, labelContent, true);
+                            continue;
+                        }
+
+                        if (child.name == "Target")
+                        {
+                            EditorGUILayout.PropertyField(child,
+                                new GUIContent("Direct Target", "Inline-only target. Empty means the TweenPlayer root unless a Target Slot is set."), true);
+                            continue;
+                        }
+
                         EditorGUILayout.PropertyField(child, true);
                     }
                     DrawEasePreview(clip);

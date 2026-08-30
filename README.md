@@ -39,9 +39,11 @@ inspector shows the animation IDs currently available on that player and flags m
 
 The clip stack supports move, local/world rotation, scale, anchor position 2D/3D, size, pivot,
 fade, color, image fill, punch, shake, jump, events, GameObject toggles, nested animation playback,
-text reveal and numeric text counters. A clip can target the player object, a direct object, or a
-named override in **Targets and automatic playback**. Named overrides make shared animation assets
-portable between prefabs.
+text reveal and numeric text counters. An inline clip can target the player object or a direct
+object. A shared asset cannot serialize scene references, so its clips use a **Target Slot** such as
+`Content` or `Icon`. Assign the asset to a player and its inspector creates a **Target bindings**
+table for those slots; each player or prefab supplies its own objects. Empty slots target the player
+root, while named but unbound slots are warned about and skipped.
 
 Playback is available from code:
 
@@ -63,8 +65,10 @@ V2 playback is intentionally independent of DOTween. `DOTween.KillAll()`, `DOTwe
 the DOTween inspector do not control V2 animations; use `TweenPlayer.Stop`, `StopAll`, `Complete`
 and the returned `TweenHandle`. This keeps runtime sampling identical to the inspector preview.
 
-To reuse a clip stack, create **Assets ▸ Create ▸ UI Motion Composer V2 ▸ Tween Animation** and
-assign it to an animation's **Shared clip asset** field.
+To reuse a clip stack, create **Assets ▸ Create ▸ UI Motion Composer V2 ▸ Tween Animation**, enter
+portable **Target Slot** names only where a clip must animate a child or external object, then assign
+the asset to an animation's **Shared clip asset** field. Bind the resulting slots below its timeline;
+**Find** resolves a child by hierarchy path first and then by GameObject name.
 
 ### V2 panel lifecycle
 

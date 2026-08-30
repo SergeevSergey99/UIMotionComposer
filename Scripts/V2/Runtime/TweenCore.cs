@@ -182,10 +182,10 @@ namespace UIMotionComposer.V2
         public bool UseCustomCurve;
         public AnimationCurve CustomCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
 
-        [Tooltip("Optional direct target. When empty, the TweenPlayer object is used.")]
+        [Tooltip("Optional direct target for an inline clip. Shared assets should use Target Slot instead. When both fields are empty, the TweenPlayer object is used.")]
         public UnityEngine.Object Target;
 
-        [Tooltip("Optional per-player override key. It takes priority over Direct Target.")]
+        [Tooltip("Portable target slot resolved by each TweenPlayer. It takes priority over Direct Target. Use this for clips stored in a shared asset.")]
         public string TargetKey;
 
         [Tooltip("Apply the configured From value while this clip is waiting for its delay.")]
