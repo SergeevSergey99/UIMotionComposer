@@ -17,113 +17,21 @@ namespace UIMotionComposer.V2.Editor
             try
             {
                 animationAsset = ScriptableObject.CreateInstance<TweenAnimationAsset>();
-                MonoScript assetScript = MonoScript.FromScriptableObject(animationAsset);
-                Require(assetScript != null && assetScript.GetClass() == typeof(TweenAnimationAsset),
-                    "TweenAnimationAsset does not resolve to its own MonoScript file.");
+                ValidateAssetScript(animationAsset);
                 ValidateClipHierarchy(animationAsset);
 
-                gameObject = new GameObject("UI Motion Composer V2 Validation", typeof(RectTransform), typeof(CanvasGroup));
-                var rect = gameObject.GetComponent<RectTransform>();
-                var canvasGroup = gameObject.GetComponent<CanvasGroup>();
-                var player = gameObject.AddComponent<TweenPlayer>();
+                gameObject = CreateFixture(out RectTransform rect, out CanvasGroup canvasGroup,
+                    out TweenPlayer player);
 
-                rect.anchoredPosition = new Vector2(12f, 34f);
-                canvasGroup.alpha = 0.8f;
-
-                var animation = new TweenAnimation { Id = "Validation" };
-                var moveClip = new AnchorPositionTweenClip
-                {
-                    FromMode = TweenEndpointMode.Custom,
-                    FromValue = Vector2.zero,
-                    ToMode = TweenEndpointMode.Custom,
-                    ToValue = new Vector2(100f, 40f),
-                    Ease = UIEase.Linear,
-                    Duration = 1f
-                };
-                animation.Clips.Add(moveClip);
-                animation.Clips.Add(new FadeTweenClip
-                {
-                    FadeTarget = TweenFadeTarget.CanvasGroup,
-                    FromMode = TweenEndpointMode.Custom,
-                    FromValue = 0f,
-                    ToMode = TweenEndpointMode.Custom,
-                    ToValue = 1f,
-                    Ease = UIEase.Linear,
-                    Duration = 1f
-                });
-                player.AnimationDefinitions.Add(animation);
-
-                Require(Mathf.Approximately(player.GetDuration("Validation"), 1f), "Duration calculation failed.");
-                Require(player.Preview("Validation", 0.5f), "Preview did not start.");
-                Require(Vector2.Distance(rect.anchoredPosition, new Vector2(50f, 20f)) < 0.001f,
-                    $"Unexpected midpoint position: {rect.anchoredPosition}.");
-                Require(Mathf.Abs(canvasGroup.alpha - 0.5f) < 0.001f,
-                    $"Unexpected midpoint alpha: {canvasGroup.alpha}.");
-
-                moveClip.ToValue = new Vector2(200f, 80f);
-                Require(player.PreparePreview("Validation").Length == 2,
-                    "Preview refresh did not recapture affected targets.");
-                Require(player.SamplePreparedPreview(0.5f), "Refreshed preview could not be sampled.");
-                Require(Vector2.Distance(rect.anchoredPosition, new Vector2(100f, 40f)) < 0.001f,
-                    $"Preview kept stale clip values after editing: {rect.anchoredPosition}.");
-
-                player.StopPreview();
-                Require(Vector2.Distance(rect.anchoredPosition, new Vector2(12f, 34f)) < 0.001f,
-                    "Preview did not restore position.");
-                Require(Mathf.Abs(canvasGroup.alpha - 0.8f) < 0.001f,
-                    "Preview did not restore alpha.");
-
+                TweenAnimation animation = ValidatePreviewSampling(player, rect, canvasGroup);
                 ValidateTargetSlot(player, animation, canvasGroup);
-
-                animation.Clips.Clear();
-                animation.Clips.Add(new AnchorPositionTweenClip
-                {
-                    FromMode = TweenEndpointMode.Current,
-                    ToMode = TweenEndpointMode.Initial,
-                    Ease = UIEase.Linear,
-                    Duration = 1f
-                });
-                player.CaptureInitialValues();
-                Require(player.HasCapturedInitialValues && player.CapturedInitialValueCount == 1,
-                    "Serialized Initial snapshot was not captured.");
-
-                rect.anchoredPosition = new Vector2(250f, -80f);
-                Require(player.Preview("Validation", 1f), "Initial endpoint preview did not start.");
-                Require(Vector2.Distance(rect.anchoredPosition, new Vector2(12f, 34f)) < 0.001f,
-                    $"Initial endpoint did not use the authored snapshot: {rect.anchoredPosition}.");
-                player.StopPreview();
-                Require(Vector2.Distance(rect.anchoredPosition, new Vector2(250f, -80f)) < 0.001f,
-                    "Preview did not restore the pose that existed before previewing Initial.");
-
-                var legacyValues = new TempValues
-                {
-                    position = new Vector3(-75f, 28f, 3f),
-                    localRotation = new Vector3(0f, 0f, 15f),
-                    localScale = new Vector3(0.9f, 1.1f, 1f),
-                    sizeDelta = new Vector2(320f, 180f),
-                    pivot = new Vector2(0.25f, 0.75f),
-                    alpha = 0.35f
-                };
-                player.ImportLegacyInitialValues(legacyValues);
-                rect.anchoredPosition = Vector2.zero;
-                player.Preview("Validation", 1f);
-                Require(Vector2.Distance(rect.anchoredPosition, (Vector2)legacyValues.position) < 0.001f,
-                    "Legacy authored pose was not imported into the V2 Initial snapshot.");
-                player.StopPreview();
-
-                var legacy = new AnimationData { Duration = 2f };
-                legacy.Alpha.Mode = SimpleAnimationMode.Unified;
-                legacy.Alpha.Unified.Timeline = new Vector2(0.25f, 0.75f);
-                var migrated = LegacyTweenMigrator.Convert(legacy);
-                Require(migrated.Count == 1, $"Expected one migrated clip, got {migrated.Count}.");
-                Require(Mathf.Abs(migrated[0].Delay - 0.5f) < 0.001f, "Legacy delay migration failed.");
-                Require(migrated[0] is DurationTweenClip migratedClip &&
-                        Mathf.Abs(migratedClip.Duration - 1f) < 0.001f,
-                    "Legacy duration migration failed.");
-
+                ValidateInitialSnapshot(player, rect, animation);
+                ValidateLegacyInitialImport(player, rect);
+                ValidateLegacyConversion();
                 ValidateAuthoringFingerprint(player);
                 ValidateNestedPlaybackModes(player, canvasGroup);
                 ValidateClipRepeatSemantics();
+                ValidateReversePlayback();
                 ValidateBindingConflictDiagnostics();
                 ValidateClickableStateMachine();
                 ValidateAnimationModeRestore(rect);
@@ -139,7 +47,192 @@ namespace UIMotionComposer.V2.Editor
             }
         }
 
-        private static void ValidateNestedPlaybackModes(TweenPlayer parentPlayer,
+        /// <summary>
+        /// Builds the object every fixture-based check runs against. Shared by the menu suite and by
+        /// the EditMode tests, which build a fresh one per test case.
+        /// </summary>
+        internal static GameObject CreateFixture(out RectTransform rect, out CanvasGroup canvasGroup,
+            out TweenPlayer player)
+        {
+            var gameObject = new GameObject("UI Motion Composer V2 Validation",
+                typeof(RectTransform), typeof(CanvasGroup));
+            rect = gameObject.GetComponent<RectTransform>();
+            canvasGroup = gameObject.GetComponent<CanvasGroup>();
+            player = gameObject.AddComponent<TweenPlayer>();
+
+            rect.anchoredPosition = new Vector2(12f, 34f);
+            canvasGroup.alpha = 0.8f;
+            return gameObject;
+        }
+
+        internal static void ValidateAssetScript(TweenAnimationAsset animationAsset)
+        {
+            MonoScript assetScript = MonoScript.FromScriptableObject(animationAsset);
+            Require(assetScript != null && assetScript.GetClass() == typeof(TweenAnimationAsset),
+                "TweenAnimationAsset does not resolve to its own MonoScript file.");
+        }
+
+        /// <summary>Returns the animation it authored so later checks can keep editing it.</summary>
+        internal static TweenAnimation ValidatePreviewSampling(TweenPlayer player, RectTransform rect,
+            CanvasGroup canvasGroup)
+        {
+            var animation = new TweenAnimation { Id = "Validation" };
+            var moveClip = new AnchorPositionTweenClip
+            {
+                FromMode = TweenEndpointMode.Custom,
+                FromValue = Vector2.zero,
+                ToMode = TweenEndpointMode.Custom,
+                ToValue = new Vector2(100f, 40f),
+                Ease = UIEase.Linear,
+                Duration = 1f
+            };
+            animation.Clips.Add(moveClip);
+            animation.Clips.Add(new FadeTweenClip
+            {
+                FadeTarget = TweenFadeTarget.CanvasGroup,
+                FromMode = TweenEndpointMode.Custom,
+                FromValue = 0f,
+                ToMode = TweenEndpointMode.Custom,
+                ToValue = 1f,
+                Ease = UIEase.Linear,
+                Duration = 1f
+            });
+            player.AnimationDefinitions.Add(animation);
+
+            Require(Mathf.Approximately(player.GetDuration("Validation"), 1f), "Duration calculation failed.");
+            Require(player.Preview("Validation", 0.5f), "Preview did not start.");
+            Require(Vector2.Distance(rect.anchoredPosition, new Vector2(50f, 20f)) < 0.001f,
+                $"Unexpected midpoint position: {rect.anchoredPosition}.");
+            Require(Mathf.Abs(canvasGroup.alpha - 0.5f) < 0.001f,
+                $"Unexpected midpoint alpha: {canvasGroup.alpha}.");
+
+            moveClip.ToValue = new Vector2(200f, 80f);
+            Require(player.PreparePreview("Validation").Length == 2,
+                "Preview refresh did not recapture affected targets.");
+            Require(player.SamplePreparedPreview(0.5f), "Refreshed preview could not be sampled.");
+            Require(Vector2.Distance(rect.anchoredPosition, new Vector2(100f, 40f)) < 0.001f,
+                $"Preview kept stale clip values after editing: {rect.anchoredPosition}.");
+
+            player.StopPreview();
+            Require(Vector2.Distance(rect.anchoredPosition, new Vector2(12f, 34f)) < 0.001f,
+                "Preview did not restore position.");
+            Require(Mathf.Abs(canvasGroup.alpha - 0.8f) < 0.001f,
+                "Preview did not restore alpha.");
+
+            return animation;
+        }
+
+        internal static void ValidateInitialSnapshot(TweenPlayer player, RectTransform rect,
+            TweenAnimation animation)
+        {
+            animation.Clips.Clear();
+            animation.Clips.Add(new AnchorPositionTweenClip
+            {
+                FromMode = TweenEndpointMode.Current,
+                ToMode = TweenEndpointMode.Initial,
+                Ease = UIEase.Linear,
+                Duration = 1f
+            });
+            player.CaptureInitialValues();
+            Require(player.HasCapturedInitialValues && player.CapturedInitialValueCount == 1,
+                "Serialized Initial snapshot was not captured.");
+
+            rect.anchoredPosition = new Vector2(250f, -80f);
+            Require(player.Preview("Validation", 1f), "Initial endpoint preview did not start.");
+            Require(Vector2.Distance(rect.anchoredPosition, new Vector2(12f, 34f)) < 0.001f,
+                $"Initial endpoint did not use the authored snapshot: {rect.anchoredPosition}.");
+            player.StopPreview();
+            Require(Vector2.Distance(rect.anchoredPosition, new Vector2(250f, -80f)) < 0.001f,
+                "Preview did not restore the pose that existed before previewing Initial.");
+        }
+
+        internal static void ValidateLegacyInitialImport(TweenPlayer player, RectTransform rect)
+        {
+            var legacyValues = new TempValues
+            {
+                position = new Vector3(-75f, 28f, 3f),
+                localRotation = new Vector3(0f, 0f, 15f),
+                localScale = new Vector3(0.9f, 1.1f, 1f),
+                sizeDelta = new Vector2(320f, 180f),
+                pivot = new Vector2(0.25f, 0.75f),
+                alpha = 0.35f
+            };
+            player.ImportLegacyInitialValues(legacyValues);
+            rect.anchoredPosition = Vector2.zero;
+            player.Preview("Validation", 1f);
+            Require(Vector2.Distance(rect.anchoredPosition, (Vector2)legacyValues.position) < 0.001f,
+                "Legacy authored pose was not imported into the V2 Initial snapshot.");
+            player.StopPreview();
+        }
+
+        internal static void ValidateLegacyConversion()
+        {
+            var legacy = new AnimationData { Duration = 2f };
+            legacy.Alpha.Mode = SimpleAnimationMode.Unified;
+            legacy.Alpha.Unified.Timeline = new Vector2(0.25f, 0.75f);
+            var migrated = LegacyTweenMigrator.Convert(legacy);
+            Require(migrated.Count == 1, $"Expected one migrated clip, got {migrated.Count}.");
+            Require(Mathf.Abs(migrated[0].Delay - 0.5f) < 0.001f, "Legacy delay migration failed.");
+            Require(migrated[0] is DurationTweenClip migratedClip &&
+                    Mathf.Abs(migratedClip.Duration - 1f) < 0.001f,
+                "Legacy duration migration failed.");
+        }
+
+        /// <summary>
+        /// A reverse launch reuses the concrete endpoints resolved by the preceding forward launch.
+        /// This matters for Current, whose value has already become To by then. A delayed clip must
+        /// also write exact From when a reverse tick crosses its start marker.
+        /// </summary>
+        internal static void ValidateReversePlayback()
+        {
+            GameObject gameObject = CreateFixture(out RectTransform rect, out _, out TweenPlayer player);
+            try
+            {
+                Vector2 authoredStart = rect.anchoredPosition;
+                Vector2 authoredEnd = new Vector2(100f, 0f);
+                var animation = new TweenAnimation { Id = "Reverse" };
+                animation.Clips.Add(new AnchorPositionTweenClip
+                {
+                    FromMode = TweenEndpointMode.Current,
+                    ToMode = TweenEndpointMode.Custom,
+                    ToValue = authoredEnd,
+                    Ease = UIEase.Linear,
+                    Delay = 0.3f,
+                    Duration = 0.7f
+                });
+                player.AnimationDefinitions.Add(animation);
+
+                object forward = CreatePlaybackForValidation(player, animation);
+                TickPlaybackForValidation(forward, 1f);
+                Require(Vector2.Distance(rect.anchoredPosition, authoredEnd) < 0.001f,
+                    $"Forward setup did not reach To: {rect.anchoredPosition}.");
+
+                object playback = CreatePlaybackForValidation(player, animation, reversed: true);
+                Require(Vector2.Distance(rect.anchoredPosition, authoredEnd) < 0.001f,
+                    $"Reversed play did not begin at the To value: {rect.anchoredPosition}.");
+
+                TickPlaybackForValidation(playback, 0.35f);
+                Vector2 midpoint = Vector2.Lerp(authoredStart, authoredEnd, 0.5f);
+                Require(Vector2.Distance(rect.anchoredPosition, midpoint) < 0.001f,
+                    $"Reversed midpoint is wrong: {rect.anchoredPosition}.");
+
+                TickPlaybackForValidation(playback, 0.5f);
+                Require(Vector2.Distance(rect.anchoredPosition, authoredStart) < 0.001f,
+                    $"Reversed delayed clip did not apply exact From at its start: {rect.anchoredPosition}.");
+
+                TickPlaybackForValidation(playback, 0.2f);
+                Require(Vector2.Distance(rect.anchoredPosition, authoredStart) < 0.001f,
+                    $"Reversed play did not end at the From value: {rect.anchoredPosition}.");
+                Require(!ReadIsActive(playback),
+                    "Reversed play did not finish when it reached zero.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+            }
+        }
+
+        internal static void ValidateNestedPlaybackModes(TweenPlayer parentPlayer,
             CanvasGroup parentCanvasGroup)
         {
             var childObject = new GameObject("Nested Tween Validation", typeof(RectTransform),
@@ -227,7 +320,7 @@ namespace UIMotionComposer.V2.Editor
             parentPlayer.AnimationDefinitions.Clear();
         }
 
-        private static void ValidateBindingConflictDiagnostics()
+        internal static void ValidateBindingConflictDiagnostics()
         {
             var target = new GameObject("Binding Conflict Validation", typeof(RectTransform),
                 typeof(TweenPlayer));
@@ -268,7 +361,7 @@ namespace UIMotionComposer.V2.Editor
             }
         }
 
-        private static void ValidateClipRepeatSemantics()
+        internal static void ValidateClipRepeatSemantics()
         {
             var target = new GameObject("Clip Repeat Validation", typeof(RectTransform), typeof(TweenPlayer));
             try
@@ -343,7 +436,7 @@ namespace UIMotionComposer.V2.Editor
             }
         }
 
-        private static void ValidateClickableStateMachine()
+        internal static void ValidateClickableStateMachine()
         {
             var target = new GameObject("Clickable Validation", typeof(RectTransform),
                 typeof(CanvasGroup), typeof(TweenPlayer), typeof(TweenUIClickable));
@@ -441,11 +534,14 @@ namespace UIMotionComposer.V2.Editor
                 BindingFlags.Public | BindingFlags.Instance).GetValue(playback);
         }
 
-        private static object CreatePlaybackForValidation(TweenPlayer player, TweenAnimation animation)
+        internal static object CreatePlaybackForValidation(TweenPlayer player, TweenAnimation animation,
+            bool reversed = false)
         {
             Type type = typeof(TweenPlayer).Assembly.GetType("UIMotionComposer.V2.TweenPlayback");
             MethodInfo create = type?.GetMethod("Create", BindingFlags.Public | BindingFlags.Static);
-            object playback = create?.Invoke(null, new object[] { player, animation, false });
+
+            // Invoke does not fill in optional parameters, so every argument is passed explicitly.
+            object playback = create?.Invoke(null, new object[] { player, animation, false, reversed });
             Require(playback != null, "Could not create a playback for nested animation validation.");
             type.GetMethod("Begin", BindingFlags.Public | BindingFlags.Instance)?.Invoke(playback, null);
             return playback;
@@ -469,7 +565,7 @@ namespace UIMotionComposer.V2.Editor
                 BindingFlags.Public | BindingFlags.Instance).GetValue(playback);
         }
 
-        private static void ValidateClipHierarchy(TweenAnimationAsset asset)
+        internal static void ValidateClipHierarchy(TweenAnimationAsset asset)
         {
             asset.Clips.Clear();
             var eventClip = new EventTweenClip { Delay = 0.7f };
@@ -521,7 +617,7 @@ namespace UIMotionComposer.V2.Editor
             asset.Clips.Clear();
         }
 
-        private static void ValidateTargetSlot(TweenPlayer player, TweenAnimation animation,
+        internal static void ValidateTargetSlot(TweenPlayer player, TweenAnimation animation,
             CanvasGroup playerCanvasGroup)
         {
             var child = new GameObject("Content", typeof(RectTransform), typeof(CanvasGroup));
@@ -568,7 +664,7 @@ namespace UIMotionComposer.V2.Editor
         /// The preview refresh only fires when the authoring fingerprint changes, so this pins the
         /// managed-reference value, type and weighted-curve cases that the inspector must observe.
         /// </summary>
-        private static void ValidateAuthoringFingerprint(TweenPlayer player)
+        internal static void ValidateAuthoringFingerprint(TweenPlayer player)
         {
             player.AnimationDefinitions.Clear();
             var clip = new AnchorPositionTweenClip
@@ -637,7 +733,7 @@ namespace UIMotionComposer.V2.Editor
             player.InvalidateAuthoringCache();
         }
 
-        private static void ValidateAnimationModeRestore(RectTransform rect)
+        internal static void ValidateAnimationModeRestore(RectTransform rect)
         {
             Vector2 original = new Vector2(31f, -47f);
             rect.anchoredPosition = original;

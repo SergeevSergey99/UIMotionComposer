@@ -24,8 +24,18 @@ namespace UIMotionComposer.V2
         private List<TweenInitialValue> capturedInitialValues = new List<TweenInitialValue>();
 
         private readonly Dictionary<string, object> _initialValues = new Dictionary<string, object>();
+        private readonly Dictionary<TweenAnimation, List<ResolvedEndpointSnapshot>> _forwardEndpoints =
+            new Dictionary<TweenAnimation, List<ResolvedEndpointSnapshot>>();
         private bool _isCapturingInitialValues;
         private TweenPlayback _preview;
+
+        private sealed class ResolvedEndpointSnapshot
+        {
+            public BaseTweenClip Clip;
+            public string BindingKey;
+            public object From;
+            public object To;
+        }
 
         public IReadOnlyList<TweenAnimation> Animations => animations;
         public IReadOnlyList<TweenTargetOverride> TargetOverrides => targetOverrides;
@@ -59,7 +69,19 @@ namespace UIMotionComposer.V2
             TweenRuntimeRunner.StopAll(this, false);
         }
 
-        public TweenHandle Play(string animationId)
+        public TweenHandle Play(string animationId) => Play(animationId, false);
+
+        /// <summary>
+        /// Plays an animation backwards: it starts at each clip's To value and walks to its From
+        /// value. Because the sampler is a pure function of time, this is the same motion in
+        /// reverse rather than an approximation -- one authored Show doubles as its own Hide.
+        ///
+        /// Triggers only fire on the way back when their Fire On Reverse is set, and an infinitely
+        /// repeating clip does not keep a reversed play alive: it is bounded by reaching zero.
+        /// </summary>
+        public TweenHandle PlayReverse(string animationId) => Play(animationId, true);
+
+        public TweenHandle Play(string animationId, bool reversed)
         {
             TweenAnimation animation = FindAnimation(animationId);
             if (animation == null)
@@ -68,7 +90,7 @@ namespace UIMotionComposer.V2
                 return TweenHandle.Invalid;
             }
 
-            TweenPlayback playback = TweenPlayback.Create(this, animation, false);
+            TweenPlayback playback = TweenPlayback.Create(this, animation, false, reversed);
             if (playback == null)
             {
                 // Distinct from "not found": the animation exists but no enabled clip resolved a
@@ -93,6 +115,12 @@ namespace UIMotionComposer.V2
         public void PlayAnimation(string animationId)
         {
             Play(animationId);
+        }
+
+        /// <summary>Void wrapper for <see cref="PlayReverse"/>, usable from a UnityEvent.</summary>
+        public void PlayAnimationReverse(string animationId)
+        {
+            PlayReverse(animationId);
         }
 
         /// <summary>Stops the matching playback at its current value and starts it again.</summary>
@@ -255,6 +283,7 @@ namespace UIMotionComposer.V2
             RebuildDrivenLayouts();
 
             _initialValues.Clear();
+            _forwardEndpoints.Clear();
             capturedInitialValues ??= new List<TweenInitialValue>();
             capturedInitialValues.Clear();
             hasCapturedInitialValues = true;
@@ -314,6 +343,7 @@ namespace UIMotionComposer.V2
         {
             StopPreview();
             _initialValues.Clear();
+            _forwardEndpoints.Clear();
             capturedInitialValues?.Clear();
             hasCapturedInitialValues = false;
         }
@@ -323,6 +353,7 @@ namespace UIMotionComposer.V2
         {
             StopPreview();
             _initialValues.Clear();
+            _forwardEndpoints.Clear();
         }
 
         public TweenAnimation FindAnimation(string animationId)
@@ -386,6 +417,64 @@ namespace UIMotionComposer.V2
             if (_isCapturingInitialValues)
                 StoreCapturedInitial(target, propertyId, current);
             return current;
+        }
+
+        /// <summary>
+        /// Remembers the concrete endpoints resolved by the latest forward launch. In particular,
+        /// Current is contextual: after the forward play reaches To, resolving it again would turn
+        /// a reverse request into To-to-To. Keeping the resolved pair makes reverse playback the
+        /// exact inverse of the motion that was actually launched.
+        /// </summary>
+        internal void RememberForwardEndpoints(TweenAnimation animation,
+            IReadOnlyList<TweenClipState> states)
+        {
+            if (animation == null || states == null)
+                return;
+
+            var snapshots = new List<ResolvedEndpointSnapshot>(states.Count);
+            for (int i = 0; i < states.Count; i++)
+            {
+                TweenClipState state = states[i];
+                if (state?.Clip == null)
+                    continue;
+
+                snapshots.Add(new ResolvedEndpointSnapshot
+                {
+                    Clip = state.Clip,
+                    BindingKey = state.BindingKey,
+                    From = state.From,
+                    To = state.To
+                });
+            }
+
+            _forwardEndpoints[animation] = snapshots;
+        }
+
+        internal void ApplyForwardEndpoints(TweenAnimation animation,
+            IReadOnlyList<TweenClipState> states)
+        {
+            if (animation == null || states == null ||
+                !_forwardEndpoints.TryGetValue(animation, out List<ResolvedEndpointSnapshot> snapshots))
+                return;
+
+            for (int i = 0; i < states.Count; i++)
+            {
+                TweenClipState state = states[i];
+                if (state?.Clip == null)
+                    continue;
+
+                for (int j = 0; j < snapshots.Count; j++)
+                {
+                    ResolvedEndpointSnapshot snapshot = snapshots[j];
+                    if (!ReferenceEquals(snapshot.Clip, state.Clip) ||
+                        !string.Equals(snapshot.BindingKey, state.BindingKey, StringComparison.Ordinal))
+                        continue;
+
+                    state.From = snapshot.From;
+                    state.To = snapshot.To;
+                    break;
+                }
+            }
         }
 
         private void StoreCapturedInitial<T>(UnityEngine.Object target, string propertyId, T value)
@@ -576,6 +665,7 @@ namespace UIMotionComposer.V2
         private float _previousTime;
         private int _pass;
         private int _direction = 1;
+        private readonly int _initialDirection = 1;
         private readonly bool _hasInfiniteClip;
 
         public TweenPlayer Player { get; }
@@ -602,22 +692,29 @@ namespace UIMotionComposer.V2
             return targets.ToArray();
         }
 
-        private TweenPlayback(TweenPlayer player, TweenAnimation animation, bool preview)
+        private TweenPlayback(TweenPlayer player, TweenAnimation animation, bool preview, bool reversed)
         {
             Player = player;
             Animation = animation;
             IsPreview = preview;
             Duration = CalculateDuration(animation.EffectiveClips);
             _hasInfiniteClip = HasInfiniteClip(animation.EffectiveClips);
+            _initialDirection = reversed ? -1 : 1;
+            _direction = _initialDirection;
+            _time = reversed ? Duration : 0f;
+            _previousTime = _time;
             Handle = new TweenHandle(this);
         }
 
-        public static TweenPlayback Create(TweenPlayer player, TweenAnimation animation, bool preview)
+        public bool IsReversed => _initialDirection < 0;
+
+        public static TweenPlayback Create(TweenPlayer player, TweenAnimation animation, bool preview,
+            bool reversed = false)
         {
             if (player == null || animation == null)
                 return null;
 
-            var playback = new TweenPlayback(player, animation, preview);
+            var playback = new TweenPlayback(player, animation, preview, reversed);
             IReadOnlyList<BaseTweenClip> clips = animation.EffectiveClips;
 
             // Capture every property before any clip writes its From value. This keeps parallel
@@ -636,13 +733,26 @@ namespace UIMotionComposer.V2
             if (playback._states.Count == 0)
                 return null;
 
+            if (reversed && !preview)
+                player.ApplyForwardEndpoints(animation, playback._states);
+
             return playback;
         }
 
         public void Begin()
         {
-            if (IsActive)
-                Sample(0f, 0f, false);
+            if (!IsActive)
+                return;
+
+            if (!IsPreview && _initialDirection > 0)
+                Player.RememberForwardEndpoints(Animation, _states);
+
+            // A reversed play starts at the far end of the timeline, so its first sample lands on
+            // each clip's To value -- which is where the forward play left the object.
+            float start = _initialDirection < 0 ? Duration : 0f;
+            _time = start;
+            _previousTime = start;
+            Sample(start, start, false);
         }
 
         public static float CalculateDuration(IReadOnlyList<BaseTweenClip> clips)
@@ -697,7 +807,9 @@ namespace UIMotionComposer.V2
             float proposedTime = _time + delta * _direction;
             _time = ClampToNextWaitMarker(proposedTime);
 
-            if (_hasInfiniteClip && _direction > 0)
+            // An infinite clip keeps a forward play alive past the authored end. A reversed play is
+            // bounded by definition -- it is walking back to zero -- so it still finishes there.
+            if (_hasInfiniteClip && _direction > 0 && _initialDirection > 0)
             {
                 Sample(_previousTime, _time, true);
                 return;
@@ -797,9 +909,11 @@ namespace UIMotionComposer.V2
             }
             else
             {
-                _direction = 1;
-                _previousTime = Duration;
-                _time = 0f;
+                // Restart returns to whichever end this playback started from, so a reversed play
+                // loops backwards instead of flipping to forward on its second pass.
+                _direction = _initialDirection;
+                _previousTime = _initialDirection > 0 ? Duration : 0f;
+                _time = _initialDirection > 0 ? 0f : Duration;
                 Sample(_previousTime, _time, true);
             }
 

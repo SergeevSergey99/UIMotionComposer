@@ -142,8 +142,58 @@ validated with the adjacent **Validate V2 showcase scene** command.
 
 Run **Tools ▸ UI Motion Composer V2 ▸ Run V2 smoke tests** after changing runtime semantics. The
 suite covers preview restore/refresh, serialized Initial values, target slots, nested playback,
-finite Restart/Ping Pong and infinite clip repeats, overlapping-binding diagnostics and the
-clickable state machine (including stopping an infinite Hover when the pointer exits).
+finite Restart/Ping Pong and infinite clip repeats, reversed playback, overlapping-binding
+diagnostics and the clickable state machine (including stopping an infinite Hover when the pointer
+exits).
+
+The same checks run as EditMode tests from `Tests/Editor`, so the Test Runner and `-runTests` in
+batch mode report them case by case and keep going after a failure. The assertions live in
+`TweenV2Validation` and both entry points call them, so there is one source of truth: the menu item
+is the quick authoring-time pass, the tests are the reportable one.
+
+### Playing an animation backwards
+
+Because the sampler is a pure function of time, an animation can run in reverse without authoring a
+second one — it starts at each clip's To value and walks back to its From value. The player keeps
+the concrete endpoints resolved by the latest forward launch, so the default **From ▸ Current**
+still returns to the value captured before that launch rather than resolving Current again at To:
+
+```csharp
+tweenPlayer.PlayReverse(TweenIds.Show);   // the Show, un-played
+tweenPlayer.Play("Attention", reversed: true);
+```
+
+`PlayAnimationReverse(string)` is the void wrapper for UnityEvent listeners. Triggers only fire on
+the way back when their **Fire On Reverse** is set. An infinitely repeating clip does not keep a
+reversed play alive: reaching zero ends it, because a reversed play is bounded by definition. With
+**Loop ▸ Restart** a reversed play loops backwards rather than flipping to forward on its second
+pass.
+
+## Assemblies
+
+The package compiles into its own assemblies rather than `Assembly-CSharp`:
+
+| Assembly | Location |
+|---|---|
+| `UIMotionComposer.Runtime` | `Scripts/` |
+| `UIMotionComposer.Tools.Editor` | `Scripts/Tools/Editor/` |
+| `UIMotionComposer.Inspector.Editor` | `Scripts/Tools/Inspector/Editor/` |
+| `UIMotionComposer.V2.Editor` | `Scripts/V2/Editor/` |
+| `UIMotionComposer.Tests.Editor` | `Tests/Editor/` |
+
+The runtime assembly is auto-referenced, so game code in `Assembly-CSharp` keeps compiling
+unchanged. Project code that lives in *its own* assembly definition must add a reference to
+`UIMotionComposer.Runtime`.
+
+Only `Unity.ugui` is referenced. DOTween, Odin and TextMeshPro stay optional exactly as before:
+Odin and DOTween are auto-referenced precompiled assemblies, and TextMeshPro is reached by
+reflection, so none of them is a hard compile-time dependency.
+
+**Custom clip types are not supported from outside the package.** `BaseTweenClip` is public, but
+`Capture`, `Evaluate` and `Restore` take internal state types, so the class cannot be subclassed
+from another assembly. This is deliberate: closing the contract now keeps `TweenClipState` and
+`TweenSampleInfo` free to change, and opening it later is not a breaking change. Add new clip types
+inside `Scripts/V2/Runtime/`.
 
 ## How the optional dependencies are wired in V1
 

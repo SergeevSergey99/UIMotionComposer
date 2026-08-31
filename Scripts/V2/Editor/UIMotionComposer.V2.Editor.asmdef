@@ -1,0 +1,19 @@
+{
+  "name": "UIMotionComposer.V2.Editor",
+  "rootNamespace": "UIMotionComposer.V2.Editor",
+  "references": [
+    "UIMotionComposer.Runtime",
+    "Unity.ugui"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

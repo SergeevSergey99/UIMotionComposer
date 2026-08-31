@@ -177,7 +177,7 @@ namespace UIMotionComposer.V2
 
         internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
         {
-            if (state?.Target == null || state.Metadata is not RevealMetadata metadata || !ShouldApply(sample.Time))
+            if (state?.Target == null || state.Metadata is not RevealMetadata metadata || !ShouldApply(sample))
                 return;
 
             int fullLength = metadata.OriginalText?.Length ?? 0;
@@ -291,7 +291,7 @@ namespace UIMotionComposer.V2
 
         internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
         {
-            if (state?.Target == null || state.Metadata is not CounterMetadata metadata || !ShouldApply(sample.Time))
+            if (state?.Target == null || state.Metadata is not CounterMetadata metadata || !ShouldApply(sample))
                 return;
 
             float value = Mathf.LerpUnclamped(FromValue, ToValue, EaseProgress(Progress(sample.Time)));

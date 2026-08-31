@@ -375,9 +375,16 @@ namespace UIMotionComposer.V2
                 : progress;
         }
 
-        protected bool ShouldApply(float time)
+        internal bool ShouldApply(in TweenSampleInfo sample)
         {
-            return ApplyFromBeforeDelay || time >= Mathf.Max(0f, Delay);
+            float delay = Mathf.Max(0f, Delay);
+            if (ApplyFromBeforeDelay || sample.Time >= delay)
+                return true;
+
+            // A reverse tick can step from after Delay to before it. Apply that crossing sample so
+            // Progress clamps to zero and writes the exact From value; later samples may remain
+            // untouched without leaving a frame-rate-dependent value just above From.
+            return !sample.Forward && sample.PreviousTime >= delay;
         }
 
         protected float EaseProgress(float progress)
@@ -498,7 +505,7 @@ namespace UIMotionComposer.V2
 
         internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
         {
-            if (state?.Target == null || !ShouldApply(sample.Time))
+            if (state?.Target == null || !ShouldApply(sample))
                 return;
 
             Vector3 from = (Vector3)state.From;
@@ -588,7 +595,7 @@ namespace UIMotionComposer.V2
 
         internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
         {
-            if (state?.Target == null || !ShouldApply(sample.Time))
+            if (state?.Target == null || !ShouldApply(sample))
                 return;
 
             Vector2 from = (Vector2)state.From;
@@ -668,7 +675,7 @@ namespace UIMotionComposer.V2
 
         internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
         {
-            if (state?.Target == null || !ShouldApply(sample.Time))
+            if (state?.Target == null || !ShouldApply(sample))
                 return;
 
             float from = (float)state.From;

@@ -1,0 +1,25 @@
+{
+  "name": "UIMotionComposer.Tests.Editor",
+  "rootNamespace": "UIMotionComposer.V2.Tests",
+  "references": [
+    "UIMotionComposer.Runtime",
+    "UIMotionComposer.V2.Editor",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

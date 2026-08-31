@@ -32,7 +32,7 @@ namespace UIMotionComposer.V2
 
         internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
         {
-            if (state?.Target is not Transform transform || !ShouldApply(sample.Time))
+            if (state?.Target is not Transform transform || !ShouldApply(sample))
                 return;
 
             float progress = Progress(sample.Time);
@@ -83,7 +83,7 @@ namespace UIMotionComposer.V2
 
         internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
         {
-            if (state?.Target is not RectTransform rectTransform || !ShouldApply(sample.Time))
+            if (state?.Target is not RectTransform rectTransform || !ShouldApply(sample))
                 return;
 
             float progress = Progress(sample.Time);
@@ -144,7 +144,7 @@ namespace UIMotionComposer.V2
 
         internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
         {
-            if (state?.Target == null || !ShouldApply(sample.Time))
+            if (state?.Target == null || !ShouldApply(sample))
                 return;
 
             float progress = Progress(sample.Time);

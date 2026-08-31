@@ -107,7 +107,7 @@ namespace UIMotionComposer.V2
 
         internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
         {
-            if (state?.Target == null || !ShouldApply(sample.Time))
+            if (state?.Target == null || !ShouldApply(sample))
                 return;
 
             Color from = (Color)state.From;
