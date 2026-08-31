@@ -19,6 +19,7 @@ namespace UIMotionComposer.V2.Editor
         private bool _showAdvanced;
         private float _previewTime;
         private bool _previewPlaying;
+        private bool _previewLoop;
         private double _previewStartedAt;
         private float _previewStartedFrom;
         private bool _previewActive;
@@ -206,6 +207,7 @@ namespace UIMotionComposer.V2.Editor
                 }
 
                 DrawPreview(id.stringValue);
+                DrawBindingConflicts(id.stringValue);
 
                 SerializedProperty started = animation.FindPropertyRelative("OnStarted");
                 SerializedProperty completed = animation.FindPropertyRelative("OnCompleted");
@@ -398,6 +400,15 @@ namespace UIMotionComposer.V2.Editor
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
+                    if (GUILayout.Button("|<", GUILayout.Width(34f)))
+                    {
+                        serializedObject.ApplyModifiedProperties();
+                        _previewPlaying = false;
+                        _previewTime = 0f;
+                        SamplePreview(animationId, 0f);
+                        SceneView.RepaintAll();
+                    }
+
                     if (GUILayout.Button(_previewPlaying ? "Pause" : "Play preview"))
                     {
                         serializedObject.ApplyModifiedProperties();
@@ -413,6 +424,9 @@ namespace UIMotionComposer.V2.Editor
                         }
                     }
 
+                    _previewLoop = GUILayout.Toggle(_previewLoop, "Loop", EditorStyles.miniButton,
+                        GUILayout.Width(52f));
+
                     if (GUILayout.Button("Restore"))
                         StopPreview();
                 }
@@ -425,14 +439,29 @@ namespace UIMotionComposer.V2.Editor
                 return;
 
             float duration = Mathf.Max(0.01f, Player.GetDuration(CurrentAnimationId()));
-            _previewTime = Mathf.Clamp01(_previewStartedFrom +
-                                         (float)(EditorApplication.timeSinceStartup - _previewStartedAt) / duration);
+            float rawTime = _previewStartedFrom +
+                            (float)(EditorApplication.timeSinceStartup - _previewStartedAt) / duration;
+            _previewTime = _previewLoop ? Mathf.Repeat(rawTime, 1f) : Mathf.Clamp01(rawTime);
             SamplePreview(CurrentAnimationId(), _previewTime);
             Repaint();
             SceneView.RepaintAll();
 
-            if (_previewTime >= 1f)
+            if (!_previewLoop && _previewTime >= 1f)
                 _previewPlaying = false;
+        }
+
+        private void DrawBindingConflicts(string animationId)
+        {
+            if (targets.Length != 1 || string.IsNullOrWhiteSpace(animationId))
+                return;
+
+            string[] conflicts = Player.GetBindingConflicts(animationId);
+            if (conflicts.Length == 0)
+                return;
+
+            EditorGUILayout.HelpBox(
+                "Overlapping clips write the same property; the lower clip in the list wins while their blocks overlap:\n• " +
+                string.Join("\n• ", conflicts), MessageType.Warning);
         }
 
         private void StopPreview()

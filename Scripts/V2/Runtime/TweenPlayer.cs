@@ -132,6 +132,45 @@ namespace UIMotionComposer.V2
         }
 
         /// <summary>
+        /// Returns authored clips that write the same resolved property during overlapping timeline
+        /// ranges. Evaluation remains deterministic (the later clip wins), but surfacing it in the
+        /// inspector prevents accidental double-authoring.
+        /// </summary>
+        public string[] GetBindingConflicts(string animationId)
+        {
+            TweenAnimation animation = FindAnimation(animationId);
+            TweenPlayback playback = TweenPlayback.Create(this, animation, true);
+            if (playback == null)
+                return Array.Empty<string>();
+
+            var conflicts = new HashSet<string>(StringComparer.Ordinal);
+            IReadOnlyList<TweenClipState> states = playback.States;
+            for (int i = 0; i < states.Count; i++)
+            {
+                TweenClipState first = states[i];
+                if (first?.Clip == null || string.IsNullOrEmpty(first.BindingKey))
+                    continue;
+
+                for (int j = i + 1; j < states.Count; j++)
+                {
+                    TweenClipState second = states[j];
+                    if (second?.Clip == null || first.BindingKey != second.BindingKey ||
+                        !AuthoredRangesOverlap(first.Clip, second.Clip))
+                        continue;
+
+                    string property = first.BindingKey.Substring(first.BindingKey.IndexOf(':') + 1);
+                    string targetName = first.Target != null ? first.Target.name : name;
+                    conflicts.Add($"{targetName} · {property}: {ClipName(first.Clip)} ↔ {ClipName(second.Clip)}");
+                }
+            }
+
+            var result = new string[conflicts.Count];
+            conflicts.CopyTo(result);
+            Array.Sort(result, StringComparer.Ordinal);
+            return result;
+        }
+
+        /// <summary>
         /// Samples an animation without side effects. The first call captures a snapshot; call
         /// <see cref="StopPreview"/> to restore it. Intended for custom inspectors and tooling.
         /// </summary>
@@ -389,6 +428,28 @@ namespace UIMotionComposer.V2
         internal void NotifyCancelled(TweenAnimation animation)
         {
             animation?.OnCancelled?.Invoke();
+        }
+
+        private static bool AuthoredRangesOverlap(BaseTweenClip first, BaseTweenClip second)
+        {
+            float firstStart = Mathf.Max(0f, first.Delay);
+            float secondStart = Mathf.Max(0f, second.Delay);
+            float firstEnd = Mathf.Max(firstStart, first.EndTime);
+            float secondEnd = Mathf.Max(secondStart, second.EndTime);
+
+            bool firstMarker = Mathf.Approximately(firstStart, firstEnd);
+            bool secondMarker = Mathf.Approximately(secondStart, secondEnd);
+            if (firstMarker || secondMarker)
+                return Mathf.Abs(firstStart - secondStart) < 0.0001f;
+
+            return Mathf.Max(firstStart, secondStart) < Mathf.Min(firstEnd, secondEnd) - 0.0001f;
+        }
+
+        private static string ClipName(BaseTweenClip clip)
+        {
+            return string.IsNullOrWhiteSpace(clip.Label)
+                ? clip.GetType().Name.Replace("TweenClip", string.Empty)
+                : clip.Label;
         }
     }
 

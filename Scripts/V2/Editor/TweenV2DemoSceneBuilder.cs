@@ -30,6 +30,7 @@ namespace UIMotionComposer.V2.Editor
         public static void Build()
         {
             EnsureFolders();
+            TweenV2PresetLibrary.Build();
             _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             _uiSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
 
@@ -42,22 +43,25 @@ namespace UIMotionComposer.V2.Editor
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.referenceResolution = new Vector2(1920f, 1800f);
             scaler.matchWidthOrHeight = 0.5f;
 
             Image background = CreateImage("Background", canvasObject.transform, Background);
             Stretch(background.rectTransform);
 
             CreateText("Title", canvasObject.transform, "UI MOTION COMPOSER  •  V2 SHOWCASE",
-                38, TextPrimary, TextAnchor.MiddleCenter, new Vector2(0f, 476f), new Vector2(1500f, 60f), FontStyle.Bold);
+                38, TextPrimary, TextAnchor.MiddleCenter, new Vector2(0f, 835f), new Vector2(1500f, 60f), FontStyle.Bold);
             CreateText("Subtitle", canvasObject.transform,
-                "Press Play. Every panel is composed from independent clips — select it to inspect and scrub the timeline.",
-                20, TextSecondary, TextAnchor.MiddleCenter, new Vector2(0f, 424f), new Vector2(1650f, 42f));
+                "Panels, reusable SO presets and stateful buttons. Hover the lower buttons to start infinite child motion.",
+                20, TextSecondary, TextAnchor.MiddleCenter, new Vector2(0f, 783f), new Vector2(1650f, 42f));
 
-            CreateSlidePanel(canvasObject.transform, new Vector2(-590f, 38f));
-            CreatePopPanel(canvasObject.transform, new Vector2(0f, 38f));
-            CreateAlertPanel(canvasObject.transform, new Vector2(590f, 38f));
-            CreateHudPanel(canvasObject.transform, new Vector2(0f, -411f));
+            CreateSlidePanel(canvasObject.transform, new Vector2(-590f, 430f));
+            CreatePopPanel(canvasObject.transform, new Vector2(0f, 430f));
+            CreateAlertPanel(canvasObject.transform, new Vector2(590f, 430f));
+            CreateButtonLabPanel(canvasObject.transform, new Vector2(-590f, -240f));
+            CreatePresetGalleryPanel(canvasObject.transform, new Vector2(0f, -240f));
+            CreateUtilityPanel(canvasObject.transform, new Vector2(590f, -240f));
+            CreateHudPanel(canvasObject.transform, new Vector2(0f, -760f));
 
             GameObject eventSystem = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
             eventSystem.transform.SetAsLastSibling();
@@ -83,6 +87,13 @@ namespace UIMotionComposer.V2.Editor
             Build();
         }
 
+        public static void BuildAndValidateFromCli()
+        {
+            Build();
+            ValidateShowcase();
+            TweenV2Validation.Run();
+        }
+
         [MenuItem("Tools/UI Motion Composer V2/Validate V2 showcase scene")]
         public static void ValidateShowcase()
         {
@@ -97,15 +108,16 @@ namespace UIMotionComposer.V2.Editor
 
             TweenPlayer[] players = all.SelectMany(item => item.GetComponents<TweenPlayer>()).ToArray();
             TweenUIPanel[] panels = all.SelectMany(item => item.GetComponents<TweenUIPanel>()).ToArray();
-            TweenUITrigger[] triggers = all.SelectMany(item => item.GetComponents<TweenUITrigger>()).ToArray();
+            TweenUIClickable[] clickables = all.SelectMany(item => item.GetComponents<TweenUIClickable>()).ToArray();
             Button[] buttons = all.SelectMany(item => item.GetComponents<Button>()).ToArray();
-            Require(players.Length == 8, $"Expected 8 TweenPlayers (4 panels + 4 buttons), got {players.Length}.");
+            Require(players.Length == 17, $"Expected 17 TweenPlayers (7 panels + 10 buttons), got {players.Length}.");
             Require(players.All(player => player.HasCapturedInitialValues && player.CapturedInitialValueCount > 0),
                 "Every TweenPlayer must have a serialized Initial Values snapshot.");
-            Require(panels.Length == 4, $"Expected 4 TweenUIPanel wrappers, got {panels.Length}.");
-            Require(triggers.Length == 4, $"Expected 4 UI event triggers, got {triggers.Length}.");
-            Require(buttons.Length == 4, $"Expected 4 replay buttons, got {buttons.Length}.");
-            Require(buttons.All(button => button.onClick.GetPersistentEventCount() == 1),
+            Require(panels.Length == 7, $"Expected 7 TweenUIPanel wrappers, got {panels.Length}.");
+            Require(clickables.Length == 10, $"Expected 10 stateful TweenUIClickables, got {clickables.Length}.");
+            Require(buttons.Length == 10, $"Expected 10 buttons, got {buttons.Length}.");
+            Require(buttons.Where(button => button.name == "Replay Animation")
+                    .All(button => button.onClick.GetPersistentEventCount() == 1),
                 "Every replay button must have exactly one persistent listener.");
 
             CheckPanel(all, "01  SLIDE PANEL", typeof(AnchorPositionTweenClip), typeof(FadeTweenClip), typeof(ColorTweenClip));
@@ -113,8 +125,14 @@ namespace UIMotionComposer.V2.Editor
             CheckPanel(all, "03  ALERT PANEL", typeof(AnchorPositionTweenClip), typeof(FadeTweenClip), typeof(ShakeTweenClip));
             CheckPanel(all, "04 HUD Progress Panel", typeof(FadeTweenClip), typeof(AnchorPositionTweenClip),
                 typeof(TextCounterTweenClip), typeof(FillAmountTweenClip));
+            CheckPanel(all, "05  INTERACTION LAB", typeof(ScaleTweenClip), typeof(FadeTweenClip));
+            CheckPanel(all, "06  SHARED PRESETS", typeof(AnchorPositionTweenClip), typeof(FadeTweenClip));
+            CheckPanel(all, "07  UTILITY MIX", typeof(ScaleTweenClip), typeof(FadeTweenClip), typeof(PunchScaleTweenClip));
 
-            Debug.Log("[UI Motion Composer] V2 showcase validation passed: 4 TweenUIPanels, 8 players, 4 interactive replay buttons, no missing scripts.");
+            ValidatePresetLibrary();
+            ValidateComplexButtons(clickables);
+
+            Debug.Log($"[UI Motion Composer] V2 showcase validation passed: 7 panels, 10 stateful buttons, {TweenV2PresetLibrary.AllPresetNames.Length} shared presets, no missing scripts.");
         }
 
         public static void ValidateFromCli()
@@ -138,6 +156,41 @@ namespace UIMotionComposer.V2.Editor
             foreach (System.Type expected in expectedClips)
                 Require(animation.EffectiveClips.Any(clip => clip != null && clip.GetType() == expected),
                     $"{name} is missing {expected.Name}.");
+        }
+
+        private static void ValidatePresetLibrary()
+        {
+            foreach (string presetName in TweenV2PresetLibrary.AllPresetNames)
+            {
+                TweenAnimationAsset asset = TweenV2PresetLibrary.Load(presetName);
+                Require(asset != null, "Missing shared preset asset: " + presetName);
+                Require(asset.Clips.Count > 0, presetName + " contains no clips.");
+                Require(asset.Clips.All(clip => clip != null), presetName + " contains a missing clip type.");
+                Require(asset.Clips.OfType<TargetedTweenClip>().All(clip => clip.Target == null),
+                    presetName + " contains a scene reference instead of a Target Slot.");
+            }
+        }
+
+        private static void ValidateComplexButtons(IEnumerable<TweenUIClickable> clickables)
+        {
+            TweenUIClickable[] motionButtons = clickables
+                .Where(clickable => clickable.name.StartsWith("Motion ", System.StringComparison.Ordinal))
+                .ToArray();
+            Require(motionButtons.Length == 6, $"Expected 6 complex motion buttons, got {motionButtons.Length}.");
+
+            foreach (TweenUIClickable clickable in motionButtons)
+            {
+                TweenPlayer player = clickable.Player ?? clickable.GetComponent<TweenPlayer>();
+                TweenAnimation hover = player.FindAnimation(TweenIds.Hover);
+                Require(hover?.Asset != null, clickable.name + " does not use a shared Hover preset.");
+                Require(hover.Playback.LoopMode == TweenLoopMode.Restart && hover.Playback.LoopCount < 0,
+                    clickable.name + " Hover is not configured as an infinite loop.");
+                string[] bindings = player.TargetOverrides.Select(entry => entry.Key).ToArray();
+                foreach (string key in new[] { "Glow", "Ring", "Spark", "Label" })
+                    Require(bindings.Contains(key), $"{clickable.name} is missing target binding '{key}'.");
+                Require(player.FindAnimation(TweenIds.Unhover)?.Asset != null,
+                    clickable.name + " cannot restore its children after Hover.");
+            }
         }
 
         private static void Require(bool condition, string message)
@@ -274,6 +327,141 @@ namespace UIMotionComposer.V2.Editor
             CreateReplayButton(panel.Body, wrapper, new Vector2(0f, -174f), Coral);
         }
 
+        private static void CreateButtonLabPanel(Transform parent, Vector2 position)
+        {
+            PanelParts panel = CreatePanel(parent, "05  INTERACTION LAB",
+                "Infinite child loops stop on exit", Blue, position);
+            CreateText("Lab Hint", panel.Body,
+                "Hover each button. Ring, spark and label are separate Target Slots in shared SO presets.",
+                16, TextSecondary, TextAnchor.UpperLeft, new Vector2(0f, 145f), new Vector2(390f, 58f));
+
+            CreateMotionButton(panel.Body, "Motion Orbit", "ORBIT + PULSE",
+                new Vector2(0f, 70f), Blue, TweenV2PresetLibrary.ButtonOrbitHover);
+            CreateMotionButton(panel.Body, "Motion Wave", "WAVE + BOUNCE",
+                new Vector2(0f, -8f), Purple, TweenV2PresetLibrary.ButtonWaveHover);
+            CreateMotionButton(panel.Body, "Motion Spectrum", "SPIN + COLOR",
+                new Vector2(0f, -86f), Green, TweenV2PresetLibrary.ButtonSpectrumHover);
+
+            TweenPlayer player = panel.Root.gameObject.AddComponent<TweenPlayer>();
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Show, TweenV2PresetLibrary.PanelPopShow));
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Hide, TweenV2PresetLibrary.PanelHide));
+            player.PlayOnEnableAnimations.Add(TweenIds.Show);
+            AddPanelWrapper(panel.Root.gameObject);
+        }
+
+        private static void CreatePresetGalleryPanel(Transform parent, Vector2 position)
+        {
+            PanelParts panel = CreatePanel(parent, "06  SHARED PRESETS",
+                "One asset, different bindings", Purple, position);
+            CreateText("Gallery Hint", panel.Body,
+                "These buttons reuse the same preset assets with different colors and child objects.",
+                16, TextSecondary, TextAnchor.UpperLeft, new Vector2(0f, 145f), new Vector2(390f, 58f));
+
+            CreateMotionButton(panel.Body, "Motion Nebula", "NEBULA ORBIT",
+                new Vector2(0f, 70f), Purple, TweenV2PresetLibrary.ButtonOrbitHover);
+            CreateMotionButton(panel.Body, "Motion Signal", "SIGNAL WAVE",
+                new Vector2(0f, -8f), Coral, TweenV2PresetLibrary.ButtonWaveHover);
+            CreateMotionButton(panel.Body, "Motion Mint", "MINT SPECTRUM",
+                new Vector2(0f, -86f), Green, TweenV2PresetLibrary.ButtonSpectrumHover);
+
+            TweenPlayer player = panel.Root.gameObject.AddComponent<TweenPlayer>();
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Show, TweenV2PresetLibrary.PanelSlideShow));
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Hide, TweenV2PresetLibrary.PanelHide));
+            player.PlayOnEnableAnimations.Add(TweenIds.Show);
+            AddPanelWrapper(panel.Root.gameObject);
+        }
+
+        private static void CreateUtilityPanel(Transform parent, Vector2 position)
+        {
+            PanelParts panel = CreatePanel(parent, "07  UTILITY MIX",
+                "Text + Fill + shared panel motion", Green, position);
+            CreateBadge(panel.Body, "SO PRESET", Green);
+
+            Text message = CreateText("Utility Message", panel.Body, "Reusable animation assets",
+                28, TextPrimary, TextAnchor.MiddleCenter, new Vector2(0f, 55f), new Vector2(390f, 42f), FontStyle.Bold);
+            CreateText("Utility Description", panel.Body,
+                "The panel entrance is a shared asset; text reveal and progress are local clips layered on top.",
+                17, TextSecondary, TextAnchor.UpperCenter, new Vector2(0f, -5f), new Vector2(390f, 70f));
+
+            Image track = CreateImage("Utility Track", panel.Body, Hex("303B50"));
+            SetRect(track.rectTransform, new Vector2(0f, -89f), new Vector2(340f, 14f));
+            Image fill = CreateImage("Utility Fill", track.transform, Green);
+            Stretch(fill.rectTransform);
+            fill.sprite = _uiSprite;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillAmount = 1f;
+
+            TweenPlayer player = panel.Root.gameObject.AddComponent<TweenPlayer>();
+            TweenAnimation show = SharedAnimation(TweenIds.Show, TweenV2PresetLibrary.PanelPopShow);
+            // This panel intentionally stays inline: it demonstrates combining a reusable panel
+            // preset with a second named local animation that owns content-specific targets.
+            player.AnimationDefinitions.Add(show);
+            player.AnimationDefinitions.Add(new TweenAnimation
+            {
+                Id = "Content",
+                Clips = new List<BaseTweenClip>
+                {
+                    new TextRevealTweenClip
+                    {
+                        Label = "Reveal heading",
+                        Target = message,
+                        Delay = 0.1f,
+                        Duration = 0.85f,
+                        Ease = UIEase.OutQuad
+                    },
+                    new FillAmountTweenClip
+                    {
+                        Label = "Fill utility bar",
+                        Target = fill,
+                        FromMode = TweenEndpointMode.Custom,
+                        FromValue = 0f,
+                        ToMode = TweenEndpointMode.Custom,
+                        ToValue = 0.76f,
+                        Delay = 0.16f,
+                        Duration = 1.1f,
+                        Ease = UIEase.OutCubic
+                    }
+                }
+            });
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Hide, TweenV2PresetLibrary.PanelHide));
+            player.PlayOnEnableAnimations.Add(TweenIds.Show);
+            player.PlayOnEnableAnimations.Add("Content");
+            AddPanelWrapper(panel.Root.gameObject);
+        }
+
+        private static void CreateMotionButton(Transform parent, string name, string label,
+            Vector2 position, Color accent, string hoverPreset)
+        {
+            Image root = CreateImage(name, parent, new Color(accent.r, accent.g, accent.b, 0.82f));
+            SetRect(root.rectTransform, position, new Vector2(370f, 62f));
+            root.raycastTarget = true;
+
+            Button button = root.gameObject.AddComponent<Button>();
+            button.targetGraphic = root;
+            button.transition = Selectable.Transition.None;
+
+            RectTransform ring = CreateRect("Ring", root.transform, new Vector2(-148f, 0f), new Vector2(42f, 42f));
+            Image ringLine = CreateImage("Ring Line", ring, new Color(1f, 1f, 1f, 0.2f));
+            SetRect(ringLine.rectTransform, Vector2.zero, new Vector2(32f, 5f));
+            Image ringTip = CreateImage("Ring Tip", ring, Color.white);
+            SetRect(ringTip.rectTransform, new Vector2(15f, 0f), new Vector2(7f, 7f));
+
+            Image spark = CreateImage("Spark", ring, Color.white);
+            SetRect(spark.rectTransform, new Vector2(0f, 15f), new Vector2(9f, 9f));
+
+            Text labelText = CreateText("Label", root.transform, label, 14, Color.white,
+                TextAnchor.MiddleCenter, new Vector2(24f, 0f), new Vector2(270f, 48f), FontStyle.Bold);
+
+            TweenPlayer player = root.gameObject.AddComponent<TweenPlayer>();
+            player.TargetOverrideDefinitions.Add(new TweenTargetOverride { Key = "Glow", Target = root });
+            player.TargetOverrideDefinitions.Add(new TweenTargetOverride { Key = "Ring", Target = ring });
+            player.TargetOverrideDefinitions.Add(new TweenTargetOverride { Key = "Spark", Target = spark });
+            player.TargetOverrideDefinitions.Add(new TweenTargetOverride { Key = "Label", Target = labelText });
+            AddButtonStateAnimations(player, hoverPreset, true);
+            root.gameObject.AddComponent<TweenUIClickable>();
+        }
+
         private static void CreateHudPanel(Transform parent, Vector2 position)
         {
             Image root = CreateImage("04 HUD Progress Panel", parent, Hex("182131"));
@@ -364,6 +552,42 @@ namespace UIMotionComposer.V2.Editor
             };
         }
 
+        private static TweenAnimation SharedAnimation(string id, string presetName, bool infiniteLoop = false)
+        {
+            TweenAnimationAsset asset = TweenV2PresetLibrary.Load(presetName);
+            if (asset == null)
+                throw new System.InvalidOperationException("Missing V2 preset asset: " + presetName);
+
+            return new TweenAnimation
+            {
+                Id = id,
+                Asset = asset,
+                Playback = new TweenPlaybackSettings
+                {
+                    UnscaledTime = true,
+                    BlendMode = TweenBlendMode.Override,
+                    KillBehavior = TweenKillBehavior.Cancel,
+                    AllowSelfOverride = true,
+                    LoopMode = infiniteLoop ? TweenLoopMode.Restart : TweenLoopMode.None,
+                    LoopCount = infiniteLoop ? -1 : 1
+                }
+            };
+        }
+
+        private static void AddButtonStateAnimations(TweenPlayer player, string hoverPreset,
+            bool infiniteHover)
+        {
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Hover, hoverPreset, infiniteHover));
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Unhover, infiniteHover
+                ? TweenV2PresetLibrary.ButtonReturn
+                : TweenV2PresetLibrary.ButtonSoftReturn));
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Click, infiniteHover
+                ? TweenV2PresetLibrary.ButtonPress
+                : TweenV2PresetLibrary.ButtonSoftPress));
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Disabled, TweenV2PresetLibrary.ButtonDisabled));
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Interactable, TweenV2PresetLibrary.ButtonInteractable));
+        }
+
         private static TweenAnimation NewHideAnimation(CanvasGroup canvasGroup)
         {
             return new TweenAnimation
@@ -451,63 +675,16 @@ namespace UIMotionComposer.V2.Editor
             image.raycastTarget = true;
             Button button = image.gameObject.AddComponent<Button>();
             button.targetGraphic = image;
-            ColorBlock colors = button.colors;
-            colors.highlightedColor = Color.Lerp(accent, Color.white, 0.13f);
-            colors.pressedColor = Color.Lerp(accent, Color.black, 0.16f);
-            button.colors = colors;
+            button.transition = Selectable.Transition.None;
 
             CreateText("Label", image.transform, "REPLAY ANIMATION", 15, Color.white,
                 TextAnchor.MiddleCenter, Vector2.zero, buttonSize, FontStyle.Bold);
             UnityEventTools.AddPersistentListener(button.onClick, new UnityEngine.Events.UnityAction(targetPanel.Show));
 
             TweenPlayer buttonPlayer = image.gameObject.AddComponent<TweenPlayer>();
-            buttonPlayer.AnimationDefinitions.Add(new TweenAnimation
-            {
-                Id = TweenIds.Hover,
-                Clips = new List<BaseTweenClip>
-                {
-                    new ScaleTweenClip
-                    {
-                        Label = "Hover grow",
-                        FromMode = TweenEndpointMode.Current,
-                        ToMode = TweenEndpointMode.OffsetFromInitial,
-                        ToOffset = new Vector3(0.045f, 0.045f, 0f),
-                        Duration = 0.14f,
-                        Ease = UIEase.OutQuad
-                    }
-                }
-            });
-            buttonPlayer.AnimationDefinitions.Add(new TweenAnimation
-            {
-                Id = TweenIds.Unhover,
-                Clips = new List<BaseTweenClip>
-                {
-                    new ScaleTweenClip
-                    {
-                        Label = "Hover return",
-                        FromMode = TweenEndpointMode.Current,
-                        ToMode = TweenEndpointMode.Initial,
-                        Duration = 0.14f,
-                        Ease = UIEase.OutQuad
-                    }
-                }
-            });
-            buttonPlayer.AnimationDefinitions.Add(new TweenAnimation
-            {
-                Id = TweenIds.Click,
-                Clips = new List<BaseTweenClip>
-                {
-                    new PunchScaleTweenClip
-                    {
-                        Label = "Click punch",
-                        Strength = new Vector3(-0.075f, -0.075f, 0f),
-                        Duration = 0.22f,
-                        Vibrato = 4,
-                        Elasticity = 0.55f
-                    }
-                }
-            });
-            image.gameObject.AddComponent<TweenUITrigger>();
+            buttonPlayer.TargetOverrideDefinitions.Add(new TweenTargetOverride { Key = "Glow", Target = image });
+            AddButtonStateAnimations(buttonPlayer, TweenV2PresetLibrary.ButtonSoftHover, false);
+            image.gameObject.AddComponent<TweenUIClickable>();
         }
 
         private static Image CreateImage(string name, Transform parent, Color color)

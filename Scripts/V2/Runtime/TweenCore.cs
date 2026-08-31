@@ -132,6 +132,7 @@ namespace UIMotionComposer.V2
 
     public static class TweenIds
     {
+        public const string Normal = "Normal";
         public const string Show = "Show";
         public const string Hide = "Hide";
         public const string Idle = "Idle";

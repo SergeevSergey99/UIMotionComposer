@@ -26,16 +26,20 @@ scenes keep working while screens are migrated one at a time.
    be disabled temporarily with Alt.
 5. Press **Capture Initial Pose** once the object and its layout look right. `Initial` and
    `Offset From Initial` keep using this serialized authoring snapshot until it is recaptured.
-6. Scrub **Edit-mode preview** or press **Play preview**; **Restore** returns the object to the pose
-   captured when preview began.
+6. Scrub **Edit-mode preview**, rewind with **|<**, or press **Play preview**. **Loop** repeats the
+   preview while editing and **Restore** returns the object to the pose captured when preview began.
 
 Edit-mode preview owns an isolated Unity Animation Mode driver. Registered animated properties are
 restored by Unity without adding preview entries to the normal Undo history; non-animatable values
 use TweenPlayer's exact snapshot restoration. If the Animation window, Timeline or another preview
 driver is already active, TweenPlayer waits until that mode is closed rather than taking it over.
 
-Add **UI Event Trigger** beside the player for no-code Hover/Unhover/Click/selection wiring. Its
-inspector shows the animation IDs currently available on that player and flags missing IDs.
+Add **Tween UI Clickable** beside the player for normal UI controls. It owns the
+`Normal / Hovered / Pressed / Disabled` state machine and stops the previous animation before
+entering the next state, so an infinitely looping Hover cannot leak after pointer exit. Its compact
+inspector only shows state animation IDs and optional events. `SetInteractable(bool)` updates both
+its CanvasGroup and an attached Selectable. The lower-level **UI Event Trigger** remains available
+when raw pointer/navigation events should map independently without a state machine.
 
 The clip stack supports move, local/world rotation, scale, anchor position 2D/3D, size, pivot,
 fade, color, image fill, punch, shake, jump, events, GameObject toggles, nested animation playback,
@@ -78,6 +82,11 @@ portable **Target Slot** names only where a clip must animate a child or externa
 the asset to an animation's **Shared clip asset** field. Bind the resulting slots below its timeline;
 **Find** resolves a child by hierarchy path first and then by GameObject name.
 
+The reusable V2 preset library lives in `ScriptableObjects/V2`. Rebuild it from
+**Tools ▸ UI Motion Composer V2 ▸ Rebuild V2 preset library**. Panel entrances, soft button states,
+three complex infinite-hover variants, disabled/re-enabled states and return animations are regular
+`TweenAnimationAsset` files: duplicate and edit them exactly like the old V1 preset assets.
+
 ### V2 panel lifecycle
 
 Add **UI Motion Composer V2/Tween UI Panel** beside a player to get a ready-made panel lifecycle.
@@ -111,13 +120,20 @@ been switched to `TweenPlayer`.
 
 ### V2 showcase scene
 
-Open `Examples/V2/UIMotionComposerV2Showcase.unity` and enter Play Mode. The scene contains four
-editable examples: a slide panel, a pop/modal panel, a shake alert and a HUD with a numeric counter
-and filled progress image. Every panel has a `TweenUIPanel`, `Show` and `Hide` animations; each
-Replay button calls the wrapper and also demonstrates the no-code hover/click trigger.
+Open `Examples/V2/UIMotionComposerV2Showcase.unity` and enter Play Mode. The scene contains seven
+panels and ten buttons: slide, pop/modal, shake alert, counter/fill HUD, utility composition and two
+shared-preset button galleries. Hover the lower motion buttons to see one child rotate forever while
+other children pulse, jump, recolor or move. Leaving the button stops the infinite Hover and its
+shared Return preset restores every bound child. Every panel uses `TweenUIPanel`; replay buttons use
+the stateful `TweenUIClickable` wrapper.
 
 The scene can be regenerated from **Tools ▸ UI Motion Composer V2 ▸ Rebuild V2 showcase scene** and
 validated with the adjacent **Validate V2 showcase scene** command.
+
+Run **Tools ▸ UI Motion Composer V2 ▸ Run V2 smoke tests** after changing runtime semantics. The
+suite covers preview restore/refresh, serialized Initial values, target slots, nested playback
+modes, overlapping-binding diagnostics and the clickable state machine (including stopping an
+infinite Hover when the pointer exits).
 
 ## How the optional dependencies are wired in V1
 

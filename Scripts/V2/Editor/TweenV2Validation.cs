@@ -123,6 +123,8 @@ namespace UIMotionComposer.V2.Editor
 
                 ValidateAuthoringFingerprint(player);
                 ValidateNestedPlaybackModes(player, canvasGroup);
+                ValidateBindingConflictDiagnostics();
+                ValidateClickableStateMachine();
                 ValidateAnimationModeRestore(rect);
 
                 Debug.Log("[UI Motion Composer] V2 smoke tests passed.");
@@ -222,6 +224,133 @@ namespace UIMotionComposer.V2.Editor
 
             childPlayer.StopAll();
             parentPlayer.AnimationDefinitions.Clear();
+        }
+
+        private static void ValidateBindingConflictDiagnostics()
+        {
+            var target = new GameObject("Binding Conflict Validation", typeof(RectTransform),
+                typeof(TweenPlayer));
+            try
+            {
+                TweenPlayer player = target.GetComponent<TweenPlayer>();
+                var first = new ScaleTweenClip
+                {
+                    Label = "First scale",
+                    Delay = 0f,
+                    Duration = 0.8f,
+                    ToMode = TweenEndpointMode.Custom,
+                    ToValue = Vector3.one * 1.1f
+                };
+                var second = new ScaleTweenClip
+                {
+                    Label = "Second scale",
+                    Delay = 0.4f,
+                    Duration = 0.8f,
+                    ToMode = TweenEndpointMode.Custom,
+                    ToValue = Vector3.one * 0.9f
+                };
+                player.AnimationDefinitions.Add(new TweenAnimation
+                {
+                    Id = "Conflict",
+                    Clips = { first, second }
+                });
+
+                Require(player.GetBindingConflicts("Conflict").Length == 1,
+                    "Overlapping clips on the same property were not reported.");
+                second.Delay = 0.8f;
+                Require(player.GetBindingConflicts("Conflict").Length == 0,
+                    "Touching, non-overlapping clips were reported as a conflict.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(target);
+            }
+        }
+
+        private static void ValidateClickableStateMachine()
+        {
+            var target = new GameObject("Clickable Validation", typeof(RectTransform),
+                typeof(CanvasGroup), typeof(TweenPlayer), typeof(TweenUIClickable));
+            try
+            {
+                TweenPlayer player = target.GetComponent<TweenPlayer>();
+                TweenUIClickable clickable = target.GetComponent<TweenUIClickable>();
+                CanvasGroup canvasGroup = target.GetComponent<CanvasGroup>();
+
+                player.AnimationDefinitions.Add(StateAnimation(TweenIds.Hover, new ScaleTweenClip
+                {
+                    Duration = 1f,
+                    FromMode = TweenEndpointMode.Initial,
+                    ToMode = TweenEndpointMode.OffsetFromInitial,
+                    ToOffset = Vector3.one * 0.1f
+                }, true));
+                player.AnimationDefinitions.Add(StateAnimation(TweenIds.Unhover, new ScaleTweenClip
+                {
+                    Duration = 0.2f,
+                    FromMode = TweenEndpointMode.Current,
+                    ToMode = TweenEndpointMode.Initial
+                }));
+                player.AnimationDefinitions.Add(StateAnimation(TweenIds.Click, new PunchScaleTweenClip()));
+                player.AnimationDefinitions.Add(StateAnimation(TweenIds.Disabled, new FadeTweenClip
+                {
+                    FadeTarget = TweenFadeTarget.CanvasGroup,
+                    Duration = 0.2f,
+                    FromMode = TweenEndpointMode.Current,
+                    ToMode = TweenEndpointMode.Custom,
+                    ToValue = 0.4f
+                }));
+                player.AnimationDefinitions.Add(StateAnimation(TweenIds.Interactable, new FadeTweenClip
+                {
+                    FadeTarget = TweenFadeTarget.CanvasGroup,
+                    Duration = 0.2f,
+                    FromMode = TweenEndpointMode.Current,
+                    ToMode = TweenEndpointMode.Initial
+                }));
+                player.CaptureInitialValues();
+
+                clickable.OnPointerEnter(null);
+                Require(clickable.State == TweenClickableState.Hovered && player.IsPlaying(TweenIds.Hover),
+                    "Pointer enter did not start Hover.");
+
+                clickable.OnPointerExit(null);
+                Require(clickable.State == TweenClickableState.Normal && !player.IsPlaying(TweenIds.Hover) &&
+                        player.IsPlaying(TweenIds.Unhover),
+                    "Pointer exit did not stop an infinite Hover and start Normal.");
+
+                clickable.OnPointerDown(null);
+                Require(clickable.State == TweenClickableState.Pressed && player.IsPlaying(TweenIds.Click),
+                    "Pointer down did not enter Pressed.");
+
+                clickable.SetInteractable(false);
+                Require(!canvasGroup.interactable && clickable.State == TweenClickableState.Disabled &&
+                        player.IsPlaying(TweenIds.Disabled),
+                    "SetInteractable(false) did not enter Disabled.");
+
+                clickable.SetInteractable(true);
+                Require(canvasGroup.interactable && clickable.State == TweenClickableState.Normal &&
+                        player.IsPlaying(TweenIds.Interactable),
+                    "SetInteractable(true) did not restore Normal.");
+
+                player.StopAll();
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(target);
+            }
+        }
+
+        private static TweenAnimation StateAnimation(string id, BaseTweenClip clip, bool infinite = false)
+        {
+            return new TweenAnimation
+            {
+                Id = id,
+                Playback = new TweenPlaybackSettings
+                {
+                    LoopMode = infinite ? TweenLoopMode.Restart : TweenLoopMode.None,
+                    LoopCount = infinite ? -1 : 1
+                },
+                Clips = { clip }
+            };
         }
 
         private static object CreatePlaybackForValidation(TweenPlayer player, TweenAnimation animation)
