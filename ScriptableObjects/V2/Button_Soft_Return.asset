@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Button_Soft_Return
   m_EditorClassIdentifier: 
   Clips:
-  - rid: 1140458142533943319
-  - rid: 1140458142533943320
+  - rid: 1140458162847219735
+  - rid: 1140458162847219736
   references:
     version: 2
     RefIds:
-    - rid: 1140458142533943319
+    - rid: 1140458162847219735
       type: {class: ScaleTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -27,6 +27,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: 
         Duration: 0.18
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:
@@ -61,7 +64,7 @@ MonoBehaviour:
         ToValue: {x: 0, y: 0, z: 0}
         ToOffset: {x: 0, y: 0, z: 0}
         Components: 7
-    - rid: 1140458142533943320
+    - rid: 1140458162847219736
       type: {class: ColorTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -70,6 +73,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: Glow
         Duration: 0.16
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:

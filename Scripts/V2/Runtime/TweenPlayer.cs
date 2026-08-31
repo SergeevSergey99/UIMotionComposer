@@ -131,6 +131,26 @@ namespace UIMotionComposer.V2
             return TweenPlayback.CalculateDuration(animation.EffectiveClips);
         }
 
+        public bool IsInfinite(string animationId)
+        {
+            TweenAnimation animation = FindAnimation(animationId);
+            if (animation == null)
+                return false;
+
+            TweenPlaybackSettings settings = animation.Playback;
+            if (settings != null && settings.LoopMode != TweenLoopMode.None && settings.LoopCount < 0)
+                return true;
+
+            IReadOnlyList<BaseTweenClip> clips = animation.EffectiveClips;
+            for (int i = 0; i < clips.Count; i++)
+            {
+                if (clips[i] is { Enabled: true, IsInfinite: true })
+                    return true;
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// Returns authored clips that write the same resolved property during overlapping timeline
         /// ranges. Evaluation remains deterministic (the later clip wins), but surfacing it in the
@@ -203,6 +223,15 @@ namespace UIMotionComposer.V2
                 return false;
 
             _preview.SampleManual(Mathf.Clamp01(normalizedTime));
+            return true;
+        }
+
+        public bool SamplePreparedPreviewTime(float time)
+        {
+            if (_preview == null)
+                return false;
+
+            _preview.SampleManualTime(Mathf.Max(0f, time));
             return true;
         }
 
@@ -547,6 +576,7 @@ namespace UIMotionComposer.V2
         private float _previousTime;
         private int _pass;
         private int _direction = 1;
+        private readonly bool _hasInfiniteClip;
 
         public TweenPlayer Player { get; }
         public TweenAnimation Animation { get; }
@@ -578,6 +608,7 @@ namespace UIMotionComposer.V2
             Animation = animation;
             IsPreview = preview;
             Duration = CalculateDuration(animation.EffectiveClips);
+            _hasInfiniteClip = HasInfiniteClip(animation.EffectiveClips);
             Handle = new TweenHandle(this);
         }
 
@@ -666,6 +697,12 @@ namespace UIMotionComposer.V2
             float proposedTime = _time + delta * _direction;
             _time = ClampToNextWaitMarker(proposedTime);
 
+            if (_hasInfiniteClip && _direction > 0)
+            {
+                Sample(_previousTime, _time, true);
+                return;
+            }
+
             if (_direction > 0 && _time >= Duration)
             {
                 _time = Duration;
@@ -694,6 +731,14 @@ namespace UIMotionComposer.V2
         public void SampleManual(float normalizedTime)
         {
             float next = Mathf.Clamp01(normalizedTime) * Duration;
+            Sample(_time, next, false);
+            _previousTime = _time;
+            _time = next;
+        }
+
+        public void SampleManualTime(float time)
+        {
+            float next = Mathf.Max(0f, time);
             Sample(_time, next, false);
             _previousTime = _time;
             _time = next;
@@ -786,6 +831,20 @@ namespace UIMotionComposer.V2
             {
                 Handle.NotifyCompleted();
             }
+        }
+
+        private static bool HasInfiniteClip(IReadOnlyList<BaseTweenClip> clips)
+        {
+            if (clips == null)
+                return false;
+
+            for (int i = 0; i < clips.Count; i++)
+            {
+                if (clips[i] is { Enabled: true, IsInfinite: true })
+                    return true;
+            }
+
+            return false;
         }
 
         private float ClampToNextWaitMarker(float proposedTime)

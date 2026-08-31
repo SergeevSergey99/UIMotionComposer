@@ -13,13 +13,13 @@ MonoBehaviour:
   m_Name: Button_Spectrum_Hover
   m_EditorClassIdentifier: 
   Clips:
-  - rid: 1140458142533943296
-  - rid: 1140458142533943297
-  - rid: 1140458142533943298
+  - rid: 1140458162847219712
+  - rid: 1140458162847219713
+  - rid: 1140458162847219714
   references:
     version: 2
     RefIds:
-    - rid: 1140458142533943296
+    - rid: 1140458162847219712
       type: {class: RotateTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -28,6 +28,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: Ring
         Duration: 1.45
+        RepeatMode: 1
+        RepeatCount: -1
+        RepeatDelay: 0
         Ease: 1
         UseCustomCurve: 0
         CustomCurve:
@@ -64,7 +67,7 @@ MonoBehaviour:
         Components: 7
         LocalSpace: 1
         ShortestPath: 1
-    - rid: 1140458142533943297
+    - rid: 1140458162847219713
       type: {class: ColorTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -72,7 +75,10 @@ MonoBehaviour:
         Delay: 0
         Target: {fileID: 0}
         TargetKey: Glow
-        Duration: 1.45
+        Duration: 0.82
+        RepeatMode: 2
+        RepeatCount: -1
+        RepeatDelay: 0
         Ease: 4
         UseCustomCurve: 0
         CustomCurve:
@@ -107,7 +113,7 @@ MonoBehaviour:
         ToMode: 2
         ToValue: {r: 0.25, g: 1, b: 0.78, a: 1}
         ToOffset: {r: 0, g: 0, b: 0, a: 0}
-    - rid: 1140458142533943298
+    - rid: 1140458162847219714
       type: {class: PunchScaleTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -115,7 +121,10 @@ MonoBehaviour:
         Delay: 0
         Target: {fileID: 0}
         TargetKey: Spark
-        Duration: 1.45
+        Duration: 0.62
+        RepeatMode: 1
+        RepeatCount: -1
+        RepeatDelay: 0.06
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:

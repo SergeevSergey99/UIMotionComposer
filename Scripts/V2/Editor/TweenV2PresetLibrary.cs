@@ -162,7 +162,10 @@ namespace UIMotionComposer.V2.Editor
                 {
                     Label = "Pulsing label",
                     TargetKey = "Label",
-                    Duration = 1.2f,
+                    Duration = 0.72f,
+                    RepeatMode = TweenLoopMode.Restart,
+                    RepeatCount = -1,
+                    RepeatDelay = 0.08f,
                     Strength = new Vector3(0.13f, 0.13f, 0f),
                     Vibrato = 4,
                     Elasticity = 0.85f
@@ -171,7 +174,10 @@ namespace UIMotionComposer.V2.Editor
                 {
                     Label = "Orbiting spark",
                     TargetKey = "Spark",
-                    Duration = 1.2f,
+                    Duration = 0.94f,
+                    RepeatMode = TweenLoopMode.Restart,
+                    RepeatCount = -1,
+                    RepeatDelay = 0.04f,
                     Strength = new Vector2(15f, 0f),
                     Vibrato = 4,
                     Elasticity = 0.9f
@@ -186,6 +192,9 @@ namespace UIMotionComposer.V2.Editor
                     FromMode = TweenEndpointMode.Initial,
                     ToMode = TweenEndpointMode.Initial,
                     Duration = 0.9f,
+                    RepeatMode = TweenLoopMode.Restart,
+                    RepeatCount = -1,
+                    RepeatDelay = 0.08f,
                     JumpPower = 13f,
                     Jumps = 2,
                     Ease = UIMotionComposer.Tweening.UIEase.Linear
@@ -194,7 +203,10 @@ namespace UIMotionComposer.V2.Editor
                 {
                     Label = "Breathing label",
                     TargetKey = "Label",
-                    Duration = 0.9f,
+                    Duration = 0.68f,
+                    RepeatMode = TweenLoopMode.Restart,
+                    RepeatCount = -1,
+                    RepeatDelay = 0.12f,
                     Strength = new Vector3(0.09f, 0.16f, 0f),
                     Vibrato = 2,
                     Elasticity = 1f
@@ -209,14 +221,19 @@ namespace UIMotionComposer.V2.Editor
                     FromMode = TweenEndpointMode.Initial,
                     ToMode = TweenEndpointMode.Custom,
                     ToValue = new Color(0.25f, 1f, 0.78f, 1f),
-                    Duration = 1.45f,
+                    Duration = 0.82f,
+                    RepeatMode = TweenLoopMode.PingPong,
+                    RepeatCount = -1,
                     Ease = UIMotionComposer.Tweening.UIEase.InOutSine
                 },
                 new PunchScaleTweenClip
                 {
                     Label = "Spark pulse",
                     TargetKey = "Spark",
-                    Duration = 1.45f,
+                    Duration = 0.62f,
+                    RepeatMode = TweenLoopMode.Restart,
+                    RepeatCount = -1,
+                    RepeatDelay = 0.06f,
                     Strength = new Vector3(0.32f, 0.32f, 0f),
                     Vibrato = 5,
                     Elasticity = 0.75f
@@ -358,6 +375,8 @@ namespace UIMotionComposer.V2.Editor
                 ToMode = TweenEndpointMode.OffsetFromInitial,
                 ToOffset = new Vector3(0f, 0f, degrees),
                 Duration = duration,
+                RepeatMode = TweenLoopMode.Restart,
+                RepeatCount = -1,
                 Ease = UIMotionComposer.Tweening.UIEase.Linear
             };
         }

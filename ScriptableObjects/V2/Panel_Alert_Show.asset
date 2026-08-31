@@ -13,13 +13,13 @@ MonoBehaviour:
   m_Name: Panel_Alert_Show
   m_EditorClassIdentifier: 
   Clips:
-  - rid: 1140458142533943313
-  - rid: 1140458142533943314
-  - rid: 1140458142533943315
+  - rid: 1140458162847219729
+  - rid: 1140458162847219730
+  - rid: 1140458162847219731
   references:
     version: 2
     RefIds:
-    - rid: 1140458142533943313
+    - rid: 1140458162847219729
       type: {class: AnchorPositionTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -28,6 +28,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: 
         Duration: 0.62
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 30
         UseCustomCurve: 0
         CustomCurve:
@@ -62,7 +65,7 @@ MonoBehaviour:
         ToValue: {x: 0, y: 0}
         ToOffset: {x: 0, y: 0}
         Components: 3
-    - rid: 1140458142533943314
+    - rid: 1140458162847219730
       type: {class: FadeTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -71,6 +74,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: 
         Duration: 0.32
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:
@@ -105,7 +111,7 @@ MonoBehaviour:
         ToValue: 1
         ToOffset: 0
         FadeTarget: 1
-    - rid: 1140458142533943315
+    - rid: 1140458162847219731
       type: {class: ShakeTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -114,6 +120,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: 
         Duration: 0.5
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:

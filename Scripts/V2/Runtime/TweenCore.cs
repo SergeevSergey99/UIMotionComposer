@@ -192,6 +192,7 @@ namespace UIMotionComposer.V2
 
         /// <summary>Trigger clips end at their marker; duration clips override this.</summary>
         public virtual float EndTime => Mathf.Max(0f, Delay);
+        public virtual bool IsInfinite => false;
         public virtual bool HasSideEffects => false;
 
         internal abstract TweenClipState Capture(TweenPlayer player);
@@ -308,6 +309,15 @@ namespace UIMotionComposer.V2
     {
         [Min(0f)] public float Duration = 0.3f;
 
+        [Tooltip("Repeat this clip independently. Animation-level Loop still repeats the whole composition.")]
+        public TweenLoopMode RepeatMode = TweenLoopMode.None;
+
+        [Tooltip("Total number of clip passes. Use -1 for an infinite repeat.")]
+        public int RepeatCount = 1;
+
+        [Min(0f), Tooltip("Pause between clip passes.")]
+        public float RepeatDelay;
+
         public UIEase Ease = UIEase.OutQuad;
         public bool UseCustomCurve;
         public AnimationCurve CustomCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
@@ -315,7 +325,21 @@ namespace UIMotionComposer.V2
         [Tooltip("Apply the configured From value while this clip is waiting for its delay.")]
         public bool ApplyFromBeforeDelay = true;
 
-        public override float EndTime => Mathf.Max(0f, Delay) + Mathf.Max(0f, Duration);
+        public override bool IsInfinite => RepeatMode != TweenLoopMode.None && RepeatCount < 0 && Duration > 0f;
+
+        public override float EndTime
+        {
+            get
+            {
+                float delay = Mathf.Max(0f, Delay);
+                float duration = Mathf.Max(0f, Duration);
+                if (RepeatMode == TweenLoopMode.None || duration <= 0f || IsInfinite)
+                    return delay + duration;
+
+                int count = Mathf.Max(1, RepeatCount);
+                return delay + duration * count + Mathf.Max(0f, RepeatDelay) * (count - 1);
+            }
+        }
 
         protected float Progress(float time)
         {
@@ -324,7 +348,31 @@ namespace UIMotionComposer.V2
                 return 0f;
 
             float duration = Mathf.Max(0f, Duration);
-            return duration <= 0f ? 1f : Mathf.Clamp01((time - delay) / duration);
+            if (duration <= 0f)
+                return 1f;
+
+            float elapsed = Mathf.Max(0f, time - delay);
+            if (RepeatMode == TweenLoopMode.None)
+                return Mathf.Clamp01(elapsed / duration);
+
+            int count = RepeatCount < 0 ? int.MaxValue : Mathf.Max(1, RepeatCount);
+            float repeatDelay = Mathf.Max(0f, RepeatDelay);
+            float span = duration + repeatDelay;
+            float total = duration * count + repeatDelay * Mathf.Max(0, count - 1);
+            if (RepeatCount >= 0 && elapsed >= total)
+                return PassEndProgress(count - 1);
+
+            int pass = span <= 0f ? 0 : Mathf.Max(0, Mathf.FloorToInt(elapsed / span));
+            if (RepeatCount >= 0)
+                pass = Mathf.Min(pass, count - 1);
+            float passTime = elapsed - pass * span;
+            if (passTime >= duration)
+                return PassEndProgress(pass);
+
+            float progress = Mathf.Clamp01(passTime / duration);
+            return RepeatMode == TweenLoopMode.PingPong && (pass & 1) == 1
+                ? 1f - progress
+                : progress;
         }
 
         protected bool ShouldApply(float time)
@@ -337,6 +385,11 @@ namespace UIMotionComposer.V2
             return UseCustomCurve && CustomCurve != null
                 ? CustomCurve.Evaluate(progress)
                 : UIEaseEvaluator.Evaluate(Ease, progress);
+        }
+
+        private float PassEndProgress(int pass)
+        {
+            return RepeatMode == TweenLoopMode.PingPong && (pass & 1) == 1 ? 0f : 1f;
         }
     }
 

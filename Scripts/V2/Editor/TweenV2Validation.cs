@@ -123,6 +123,7 @@ namespace UIMotionComposer.V2.Editor
 
                 ValidateAuthoringFingerprint(player);
                 ValidateNestedPlaybackModes(player, canvasGroup);
+                ValidateClipRepeatSemantics();
                 ValidateBindingConflictDiagnostics();
                 ValidateClickableStateMachine();
                 ValidateAnimationModeRestore(rect);
@@ -267,6 +268,81 @@ namespace UIMotionComposer.V2.Editor
             }
         }
 
+        private static void ValidateClipRepeatSemantics()
+        {
+            var target = new GameObject("Clip Repeat Validation", typeof(RectTransform), typeof(TweenPlayer));
+            try
+            {
+                TweenPlayer player = target.GetComponent<TweenPlayer>();
+                Transform transform = target.transform;
+                var clip = new ScaleTweenClip
+                {
+                    FromMode = TweenEndpointMode.Custom,
+                    FromValue = Vector3.one,
+                    ToMode = TweenEndpointMode.Custom,
+                    ToValue = Vector3.one * 2f,
+                    Duration = 1f,
+                    RepeatMode = TweenLoopMode.Restart,
+                    RepeatCount = 3,
+                    Ease = UIEase.Linear
+                };
+                var animation = new TweenAnimation { Id = "Repeat", Clips = { clip } };
+                player.AnimationDefinitions.Add(animation);
+
+                Require(Mathf.Approximately(player.GetDuration(animation.Id), 3f),
+                    "Finite clip repeats were not included in animation duration.");
+                player.PreparePreview(animation.Id);
+                player.SamplePreparedPreviewTime(1.5f);
+                Require(Vector3.Distance(transform.localScale, Vector3.one * 1.5f) < 0.001f,
+                    "Restart repeat did not evaluate its second pass.");
+                player.StopPreview();
+
+                clip.RepeatDelay = 0.2f;
+                Require(Mathf.Approximately(player.GetDuration(animation.Id), 3.4f),
+                    "Repeat Delay was not included between finite clip passes.");
+                player.PreparePreview(animation.Id);
+                player.SamplePreparedPreviewTime(1.1f);
+                Require(Vector3.Distance(transform.localScale, Vector3.one * 2f) < 0.001f,
+                    "Clip did not hold its pass endpoint during Repeat Delay.");
+                player.SamplePreparedPreviewTime(1.7f);
+                Require(Vector3.Distance(transform.localScale, Vector3.one * 1.5f) < 0.001f,
+                    "Clip did not resume after Repeat Delay.");
+                player.StopPreview();
+
+                clip.RepeatMode = TweenLoopMode.PingPong;
+                clip.RepeatCount = 2;
+                clip.RepeatDelay = 0f;
+                Require(Mathf.Approximately(player.GetDuration(animation.Id), 2f),
+                    "Ping-pong repeat duration is incorrect.");
+                player.PreparePreview(animation.Id);
+                player.SamplePreparedPreviewTime(1.5f);
+                Require(Vector3.Distance(transform.localScale, Vector3.one * 1.5f) < 0.001f,
+                    "Ping-pong repeat did not reverse its second pass.");
+                player.SamplePreparedPreviewTime(2f);
+                Require(Vector3.Distance(transform.localScale, Vector3.one) < 0.001f,
+                    "Even ping-pong repeat did not finish at its From value.");
+                player.StopPreview();
+
+                clip.RepeatMode = TweenLoopMode.Restart;
+                clip.RepeatCount = -1;
+                Require(player.IsInfinite(animation.Id),
+                    "Infinite clip repeat did not mark its animation as infinite.");
+                Require(Mathf.Approximately(player.GetDuration(animation.Id), 1f),
+                    "Infinite clip should expose one authored cycle as timeline duration.");
+
+                object playback = CreatePlaybackForValidation(player, animation);
+                TickPlaybackForValidation(playback, 2.5f);
+                Require(ReadIsActive(playback), "Playback completed while an infinite clip was active.");
+                Require(Vector3.Distance(transform.localScale, Vector3.one * 1.5f) < 0.001f,
+                    "Infinite clip did not evaluate beyond its first authored cycle.");
+                StopPlaybackForValidation(playback, false);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(target);
+            }
+        }
+
         private static void ValidateClickableStateMachine()
         {
             var target = new GameObject("Clickable Validation", typeof(RectTransform),
@@ -341,16 +417,28 @@ namespace UIMotionComposer.V2.Editor
 
         private static TweenAnimation StateAnimation(string id, BaseTweenClip clip, bool infinite = false)
         {
+            if (infinite && clip is DurationTweenClip durationClip)
+            {
+                durationClip.RepeatMode = TweenLoopMode.Restart;
+                durationClip.RepeatCount = -1;
+            }
+
             return new TweenAnimation
             {
                 Id = id,
                 Playback = new TweenPlaybackSettings
                 {
-                    LoopMode = infinite ? TweenLoopMode.Restart : TweenLoopMode.None,
-                    LoopCount = infinite ? -1 : 1
+                    LoopMode = TweenLoopMode.None,
+                    LoopCount = 1
                 },
                 Clips = { clip }
             };
+        }
+
+        private static bool ReadIsActive(object playback)
+        {
+            return (bool)playback.GetType().GetProperty("IsActive",
+                BindingFlags.Public | BindingFlags.Instance).GetValue(playback);
         }
 
         private static object CreatePlaybackForValidation(TweenPlayer player, TweenAnimation animation)

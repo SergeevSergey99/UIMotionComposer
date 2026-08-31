@@ -65,6 +65,12 @@ Per-animation settings select scaled/unscaled time, override/additive blending, 
 behaviour, restart/ping-pong loops and finite or infinite loop counts. Utility clips do not execute
 their side effects in edit-mode preview.
 
+Every duration clip also has independent **Repeat Mode**, **Repeat Count** and **Repeat Delay**.
+Use clip Repeat when only a ring, glow or child element should cycle; use animation Loop when the
+entire choreography, including its relative timing, should start again. An infinite clip keeps its
+animation handle active until it is stopped, while one-shot sibling clips remain at their completed
+values. The timeline draws repeated ranges with stripes and marks infinite clips with `∞`.
+
 **Utility ▸ Play Tween Animation** starts an animation on another targeted `TweenPlayer`. Its
 **Playback Mode** controls ownership: **Fire And Forget** leaves the child independent; **Wait**
 holds the parent timeline at the trigger marker until the child finishes and cancels the child if
@@ -72,6 +78,9 @@ the parent is cancelled; **Link Lifetime** runs both in parallel, completing the
 completed parent and cancelling it with a cancelled parent. Waiting on an infinite child loop is
 intentionally infinite. `GetDuration()` reports the authored parent timeline only; runtime spent in
 **Wait** is dynamic and is not added to that value.
+
+For an animation containing an infinitely repeated clip, `GetDuration()` reports one authored cycle
+for timeline/preview scaling, while `IsInfinite(id)` reports the actual lifetime.
 
 V2 playback is intentionally independent of DOTween. `DOTween.KillAll()`, `DOTween.timeScale` and
 the DOTween inspector do not control V2 animations; use `TweenPlayer.Stop`, `StopAll`, `Complete`
@@ -84,7 +93,7 @@ the asset to an animation's **Shared clip asset** field. Bind the resulting slot
 
 The reusable V2 preset library lives in `ScriptableObjects/V2`. Rebuild it from
 **Tools ▸ UI Motion Composer V2 ▸ Rebuild V2 preset library**. Panel entrances, soft button states,
-three complex infinite-hover variants, disabled/re-enabled states and return animations are regular
+three complex clip-repeated hover variants, disabled/re-enabled states and return animations are regular
 `TweenAnimationAsset` files: duplicate and edit them exactly like the old V1 preset assets.
 
 ### V2 panel lifecycle
@@ -123,7 +132,8 @@ been switched to `TweenPlayer`.
 Open `Examples/V2/UIMotionComposerV2Showcase.unity` and enter Play Mode. The scene contains seven
 panels and ten buttons: slide, pop/modal, shake alert, counter/fill HUD, utility composition and two
 shared-preset button galleries. Hover the lower motion buttons to see one child rotate forever while
-other children pulse, jump, recolor or move. Leaving the button stops the infinite Hover and its
+other children independently pulse, jump, recolor or move at different periods. The Hover animation
+itself no longer restarts; only the configured clips repeat. Leaving the button stops it and its
 shared Return preset restores every bound child. Every panel uses `TweenUIPanel`; replay buttons use
 the stateful `TweenUIClickable` wrapper.
 
@@ -131,9 +141,9 @@ The scene can be regenerated from **Tools ▸ UI Motion Composer V2 ▸ Rebuild 
 validated with the adjacent **Validate V2 showcase scene** command.
 
 Run **Tools ▸ UI Motion Composer V2 ▸ Run V2 smoke tests** after changing runtime semantics. The
-suite covers preview restore/refresh, serialized Initial values, target slots, nested playback
-modes, overlapping-binding diagnostics and the clickable state machine (including stopping an
-infinite Hover when the pointer exits).
+suite covers preview restore/refresh, serialized Initial values, target slots, nested playback,
+finite Restart/Ping Pong and infinite clip repeats, overlapping-binding diagnostics and the
+clickable state machine (including stopping an infinite Hover when the pointer exits).
 
 ## How the optional dependencies are wired in V1
 

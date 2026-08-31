@@ -441,12 +441,16 @@ namespace UIMotionComposer.V2.Editor
             float duration = Mathf.Max(0.01f, Player.GetDuration(CurrentAnimationId()));
             float rawTime = _previewStartedFrom +
                             (float)(EditorApplication.timeSinceStartup - _previewStartedAt) / duration;
-            _previewTime = _previewLoop ? Mathf.Repeat(rawTime, 1f) : Mathf.Clamp01(rawTime);
-            SamplePreview(CurrentAnimationId(), _previewTime);
+            bool infinite = Player.IsInfinite(CurrentAnimationId());
+            _previewTime = _previewLoop || infinite ? Mathf.Repeat(rawTime, 1f) : Mathf.Clamp01(rawTime);
+            if (infinite)
+                SamplePreviewTime(CurrentAnimationId(), Mathf.Max(0f, rawTime) * duration);
+            else
+                SamplePreview(CurrentAnimationId(), _previewTime);
             Repaint();
             SceneView.RepaintAll();
 
-            if (!_previewLoop && _previewTime >= 1f)
+            if (!_previewLoop && !infinite && _previewTime >= 1f)
                 _previewPlaying = false;
         }
 
@@ -478,37 +482,47 @@ namespace UIMotionComposer.V2.Editor
 
         private void SamplePreview(string animationId, float normalizedTime)
         {
-            if (!_previewActive || !string.Equals(_previewAnimationId, animationId, StringComparison.Ordinal))
+            if (EnsurePreview(animationId))
+                Player.SamplePreparedPreview(normalizedTime);
+        }
+
+        private void SamplePreviewTime(string animationId, float time)
+        {
+            if (EnsurePreview(animationId))
+                Player.SamplePreparedPreviewTime(time);
+        }
+
+        private bool EnsurePreview(string animationId)
+        {
+            if (_previewActive && string.Equals(_previewAnimationId, animationId, StringComparison.Ordinal))
+                return true;
+
+            StopPreview();
+            UnityEngine.Object[] affectedTargets = Player.PreparePreview(animationId);
+            if (affectedTargets.Length == 0)
+                return false;
+
+            _previewAnimationMode ??= new TweenPreviewAnimationMode();
+            if (!_previewAnimationMode.TryStart())
             {
-                StopPreview();
-                UnityEngine.Object[] affectedTargets = Player.PreparePreview(animationId);
-                if (affectedTargets.Length == 0)
-                    return;
+                Player.StopPreview();
 
-                _previewAnimationMode ??= new TweenPreviewAnimationMode();
-                if (!_previewAnimationMode.TryStart())
+                // Once per blocked stretch: every scrub and every Play press comes back here
+                // while the Animation window stays open.
+                if (!_previewBlockedWarned)
                 {
-                    Player.StopPreview();
-
-                    // Once per blocked stretch: every scrub and every Play press comes back here
-                    // while the Animation window stays open.
-                    if (!_previewBlockedWarned)
-                    {
-                        _previewBlockedWarned = true;
-                        Debug.LogWarning("[UI Motion Composer] Preview cannot start while another Animation Mode driver is active.", Player);
-                    }
-                    return;
+                    _previewBlockedWarned = true;
+                    Debug.LogWarning("[UI Motion Composer] Preview cannot start while another Animation Mode driver is active.", Player);
                 }
-
-                _previewBlockedWarned = false;
-
-                _previewAnimationMode.RegisterTargets(affectedTargets);
-                _previewActive = true;
-                _previewAnimationId = animationId;
-                _previewFingerprint = AuthoringFingerprint(animationId);
+                return false;
             }
 
-            Player.SamplePreparedPreview(normalizedTime);
+            _previewBlockedWarned = false;
+            _previewAnimationMode.RegisterTargets(affectedTargets);
+            _previewActive = true;
+            _previewAnimationId = animationId;
+            _previewFingerprint = AuthoringFingerprint(animationId);
+            return true;
         }
 
         private void ScrubTimeline(string animationId, float normalizedTime)
@@ -924,6 +938,10 @@ namespace UIMotionComposer.V2.Editor
                     }
                     if (value is PlayTweenAnimationClip)
                         DrawNestedPlaybackHelp(clip);
+                    if (value.IsInfinite)
+                        EditorGUILayout.HelpBox(
+                            "This clip repeats forever and keeps its animation handle active until it is stopped or replaced.",
+                            MessageType.Info);
                     DrawEasePreview(clip);
                     EditorGUI.indentLevel--;
                 }
@@ -1152,6 +1170,18 @@ namespace UIMotionComposer.V2.Editor
 
         private static bool ShouldDraw(SerializedProperty clip, string fieldName)
         {
+            SerializedProperty repeatMode = clip.FindPropertyRelative("RepeatMode");
+            if ((fieldName == "RepeatCount" || fieldName == "RepeatDelay") && repeatMode != null &&
+                repeatMode.enumValueIndex == (int)TweenLoopMode.None)
+                return false;
+
+            if (fieldName == "RepeatDelay" && repeatMode != null)
+            {
+                SerializedProperty repeatCount = clip.FindPropertyRelative("RepeatCount");
+                if (repeatCount != null && repeatCount.intValue == 1)
+                    return false;
+            }
+
             if (fieldName == "CustomCurve")
                 return clip.FindPropertyRelative("UseCustomCurve")?.boolValue == true;
             if (fieldName == "Ease")

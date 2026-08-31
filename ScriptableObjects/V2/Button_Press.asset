@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Button_Press
   m_EditorClassIdentifier: 
   Clips:
-  - rid: 1140458142533943325
-  - rid: 1140458142533943326
+  - rid: 1140458162847219741
+  - rid: 1140458162847219742
   references:
     version: 2
     RefIds:
-    - rid: 1140458142533943325
+    - rid: 1140458162847219741
       type: {class: PunchScaleTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -27,6 +27,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: 
         Duration: 0.24
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:
@@ -57,7 +60,7 @@ MonoBehaviour:
         Strength: {x: -0.09, y: -0.09, z: 0}
         Vibrato: 4
         Elasticity: 0.62
-    - rid: 1140458142533943326
+    - rid: 1140458162847219742
       type: {class: PunchScaleTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -66,6 +69,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: Spark
         Duration: 0.28
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:

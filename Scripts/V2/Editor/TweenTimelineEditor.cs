@@ -54,6 +54,7 @@ namespace UIMotionComposer.V2.Editor
 
             TimelineState state = GetState(owner, clips.propertyPath);
             float totalDuration = CalculateDuration(clips);
+            bool hasInfiniteClip = HasInfiniteClip(clips);
             float viewDuration = state.ActiveControl != 0
                 ? Mathf.Max(0.25f, state.DragViewDuration)
                 : Mathf.Max(0.25f, totalDuration);
@@ -63,7 +64,8 @@ namespace UIMotionComposer.V2.Editor
                 state.Expanded = EditorGUILayout.Foldout(state.Expanded, "Visual Timeline", true,
                     EditorStyles.foldoutHeader);
                 GUILayout.FlexibleSpace();
-                GUILayout.Label($"{totalDuration:0.###}s", EditorStyles.miniLabel, GUILayout.Width(54f));
+                GUILayout.Label(hasInfiniteClip ? "∞" : $"{totalDuration:0.###}s",
+                    EditorStyles.miniLabel, GUILayout.Width(54f));
                 GUILayout.Label("Snap", EditorStyles.miniLabel, GUILayout.Width(30f));
                 state.SnapIndex = EditorGUILayout.Popup(state.SnapIndex, SnapLabels,
                     EditorStyles.toolbarPopup, GUILayout.Width(58f));
@@ -135,6 +137,12 @@ namespace UIMotionComposer.V2.Editor
             float start = Mathf.Max(0f, delay.floatValue);
             bool isMarker = duration == null;
             float length = isMarker ? 0f : Mathf.Max(0f, duration.floatValue);
+            bool repeated = value is DurationTweenClip durationClip &&
+                            durationClip.RepeatMode != TweenLoopMode.None;
+            bool infinite = value.IsInfinite;
+            int repeatCount = value is DurationTweenClip repeatedClip
+                ? repeatedClip.RepeatCount
+                : 1;
 
             float actualLabelWidth = Mathf.Min(LabelWidth, row.width * 0.4f);
             Rect labelRect = new Rect(row.x, row.y, actualLabelWidth, row.height);
@@ -152,7 +160,11 @@ namespace UIMotionComposer.V2.Editor
             GUI.Label(new Rect(labelRect.x + 5f, labelRect.y + 2f, labelRect.width - 8f, 16f),
                 new GUIContent(label, value.GetType().Name), EditorStyles.miniBoldLabel);
             GUI.Label(new Rect(labelRect.x + 5f, labelRect.y + 16f, labelRect.width - 8f, 14f),
-                isMarker ? $"at {start:0.###}" : $"{start:0.###}  →  {start + length:0.###}",
+                isMarker ? $"at {start:0.###}" : infinite
+                    ? $"{start:0.###}  →  ∞"
+                    : repeated
+                        ? $"{start:0.###}  →  {value.EndTime:0.###}  ×{Mathf.Max(1, repeatCount)}"
+                        : $"{start:0.###}  →  {start + length:0.###}",
                 EditorStyles.centeredGreyMiniLabel);
 
             DrawGrid(timeRect, viewDuration);
@@ -166,6 +178,17 @@ namespace UIMotionComposer.V2.Editor
             Color color = ClipColor(value.GetType());
             if (!enabled.boolValue)
                 color = Color.Lerp(color, Color.gray, 0.65f);
+            if (repeated && !isMarker)
+            {
+                float repeatEndX = infinite
+                    ? timeRect.xMax
+                    : TimeToX(value.EndTime, timeRect, viewDuration);
+                Rect repeatRegion = new Rect(blockX, row.y + 5f,
+                    Mathf.Max(MinimumBlockWidth, repeatEndX - blockX), row.height - 10f);
+                repeatRegion.xMin = Mathf.Clamp(repeatRegion.xMin, timeRect.x, timeRect.xMax);
+                repeatRegion.xMax = Mathf.Clamp(repeatRegion.xMax, repeatRegion.xMin, timeRect.xMax);
+                DrawRepeatRegion(repeatRegion, color, infinite);
+            }
             EditorGUI.DrawRect(block, color);
             if (isMarker)
             {
@@ -176,7 +199,9 @@ namespace UIMotionComposer.V2.Editor
             {
                 EditorGUI.DrawRect(new Rect(block.x, block.y, HandleWidth, block.height), Color.Lerp(color, Color.white, 0.32f));
                 EditorGUI.DrawRect(new Rect(block.xMax - HandleWidth, block.y, HandleWidth, block.height), Color.Lerp(color, Color.white, 0.32f));
-                GUI.Label(block, length <= 0.001f ? "0s" : $"{length:0.##}s", EditorStyles.centeredGreyMiniLabel);
+                GUI.Label(block, length <= 0.001f ? "0s" : repeated
+                    ? $"{length:0.##}s {(infinite ? "∞" : "↻")}" : $"{length:0.##}s",
+                    EditorStyles.centeredGreyMiniLabel);
                 EditorGUIUtility.AddCursorRect(new Rect(block.x, block.y, HandleWidth, block.height), MouseCursor.ResizeHorizontal);
                 EditorGUIUtility.AddCursorRect(new Rect(block.xMax - HandleWidth, block.y, HandleWidth, block.height), MouseCursor.ResizeHorizontal);
                 EditorGUIUtility.AddCursorRect(new Rect(block.x + HandleWidth, block.y,
@@ -381,15 +406,49 @@ namespace UIMotionComposer.V2.Editor
             {
                 SerializedProperty clip = clips.GetArrayElementAtIndex(i);
                 SerializedProperty enabled = clip.FindPropertyRelative("Enabled");
-                SerializedProperty delay = clip.FindPropertyRelative("Delay");
-                SerializedProperty length = clip.FindPropertyRelative("Duration");
-                if (delay == null || enabled?.boolValue == false)
+                if (enabled?.boolValue == false || clip.managedReferenceValue is not BaseTweenClip value)
                     continue;
-                float end = Mathf.Max(0f, delay.floatValue) +
-                            (length == null ? 0f : Mathf.Max(0f, length.floatValue));
+                float end = value.EndTime;
+                if (value.IsInfinite && value is DurationTweenClip durationClip)
+                    end += Mathf.Max(0.5f, durationClip.Duration * 0.75f);
                 duration = Mathf.Max(duration, end);
             }
             return duration;
+        }
+
+        private static bool HasInfiniteClip(SerializedProperty clips)
+        {
+            for (int i = 0; i < clips.arraySize; i++)
+            {
+                SerializedProperty clip = clips.GetArrayElementAtIndex(i);
+                if (clip.FindPropertyRelative("Enabled")?.boolValue != false &&
+                    clip.managedReferenceValue is BaseTweenClip { IsInfinite: true })
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static void DrawRepeatRegion(Rect rect, Color color, bool infinite)
+        {
+            EditorGUI.DrawRect(rect, new Color(color.r, color.g, color.b, 0.28f));
+            Handles.BeginGUI();
+            Color old = Handles.color;
+            Handles.color = new Color(1f, 1f, 1f, 0.16f);
+            for (float x = rect.x - rect.height; x < rect.xMax; x += 9f)
+            {
+                float startX = Mathf.Max(rect.x, x);
+                float endX = Mathf.Min(rect.xMax, x + rect.height);
+                float startY = rect.yMax - (startX - x);
+                float endY = rect.yMax - (endX - x);
+                Handles.DrawLine(new Vector3(startX, startY), new Vector3(endX, endY));
+            }
+            Handles.color = old;
+            Handles.EndGUI();
+
+            if (infinite)
+                GUI.Label(new Rect(rect.xMax - 22f, rect.y, 20f, rect.height), "∞",
+                    EditorStyles.centeredGreyMiniLabel);
         }
 
         private static float TimeToX(float time, Rect rect, float duration)

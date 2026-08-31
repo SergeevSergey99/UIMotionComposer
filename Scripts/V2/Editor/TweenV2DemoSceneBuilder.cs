@@ -183,8 +183,10 @@ namespace UIMotionComposer.V2.Editor
                 TweenPlayer player = clickable.Player ?? clickable.GetComponent<TweenPlayer>();
                 TweenAnimation hover = player.FindAnimation(TweenIds.Hover);
                 Require(hover?.Asset != null, clickable.name + " does not use a shared Hover preset.");
-                Require(hover.Playback.LoopMode == TweenLoopMode.Restart && hover.Playback.LoopCount < 0,
-                    clickable.name + " Hover is not configured as an infinite loop.");
+                Require(hover.Playback.LoopMode == TweenLoopMode.None,
+                    clickable.name + " still repeats the whole Hover animation.");
+                Require(hover.EffectiveClips.Any(clip => clip is DurationTweenClip { IsInfinite: true }),
+                    clickable.name + " has no infinite child clip.");
                 string[] bindings = player.TargetOverrides.Select(entry => entry.Key).ToArray();
                 foreach (string key in new[] { "Glow", "Ring", "Spark", "Label" })
                     Require(bindings.Contains(key), $"{clickable.name} is missing target binding '{key}'.");
@@ -552,7 +554,7 @@ namespace UIMotionComposer.V2.Editor
             };
         }
 
-        private static TweenAnimation SharedAnimation(string id, string presetName, bool infiniteLoop = false)
+        private static TweenAnimation SharedAnimation(string id, string presetName)
         {
             TweenAnimationAsset asset = TweenV2PresetLibrary.Load(presetName);
             if (asset == null)
@@ -568,20 +570,20 @@ namespace UIMotionComposer.V2.Editor
                     BlendMode = TweenBlendMode.Override,
                     KillBehavior = TweenKillBehavior.Cancel,
                     AllowSelfOverride = true,
-                    LoopMode = infiniteLoop ? TweenLoopMode.Restart : TweenLoopMode.None,
-                    LoopCount = infiniteLoop ? -1 : 1
+                    LoopMode = TweenLoopMode.None,
+                    LoopCount = 1
                 }
             };
         }
 
         private static void AddButtonStateAnimations(TweenPlayer player, string hoverPreset,
-            bool infiniteHover)
+            bool complexHover)
         {
-            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Hover, hoverPreset, infiniteHover));
-            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Unhover, infiniteHover
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Hover, hoverPreset));
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Unhover, complexHover
                 ? TweenV2PresetLibrary.ButtonReturn
                 : TweenV2PresetLibrary.ButtonSoftReturn));
-            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Click, infiniteHover
+            player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Click, complexHover
                 ? TweenV2PresetLibrary.ButtonPress
                 : TweenV2PresetLibrary.ButtonSoftPress));
             player.AnimationDefinitions.Add(SharedAnimation(TweenIds.Disabled, TweenV2PresetLibrary.ButtonDisabled));

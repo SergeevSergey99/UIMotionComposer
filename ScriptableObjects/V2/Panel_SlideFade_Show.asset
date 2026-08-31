@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Panel_SlideFade_Show
   m_EditorClassIdentifier: 
   Clips:
-  - rid: 1140458142533943321
-  - rid: 1140458142533943322
+  - rid: 1140458162847219737
+  - rid: 1140458162847219738
   references:
     version: 2
     RefIds:
-    - rid: 1140458142533943321
+    - rid: 1140458162847219737
       type: {class: AnchorPositionTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -27,6 +27,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: 
         Duration: 0.72
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 27
         UseCustomCurve: 0
         CustomCurve:
@@ -61,7 +64,7 @@ MonoBehaviour:
         ToValue: {x: 0, y: 0}
         ToOffset: {x: 0, y: 0}
         Components: 3
-    - rid: 1140458142533943322
+    - rid: 1140458162847219738
       type: {class: FadeTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -70,6 +73,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: 
         Duration: 0.4
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:

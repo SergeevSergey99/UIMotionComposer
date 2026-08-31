@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Button_Disabled
   m_EditorClassIdentifier: 
   Clips:
-  - rid: 1140458142533943329
-  - rid: 1140458142533943330
+  - rid: 1140458162847219745
+  - rid: 1140458162847219746
   references:
     version: 2
     RefIds:
-    - rid: 1140458142533943329
+    - rid: 1140458162847219745
       type: {class: FadeTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -27,6 +27,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: 
         Duration: 0.22
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:
@@ -61,7 +64,7 @@ MonoBehaviour:
         ToValue: 0.42
         ToOffset: 0
         FadeTarget: 1
-    - rid: 1140458142533943330
+    - rid: 1140458162847219746
       type: {class: ScaleTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -70,6 +73,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: 
         Duration: 0.22
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:

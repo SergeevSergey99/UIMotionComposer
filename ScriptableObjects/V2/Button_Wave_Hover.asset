@@ -13,13 +13,13 @@ MonoBehaviour:
   m_Name: Button_Wave_Hover
   m_EditorClassIdentifier: 
   Clips:
-  - rid: 1140458142533943307
-  - rid: 1140458142533943308
-  - rid: 1140458142533943309
+  - rid: 1140458162847219726
+  - rid: 1140458162847219727
+  - rid: 1140458162847219728
   references:
     version: 2
     RefIds:
-    - rid: 1140458142533943307
+    - rid: 1140458162847219726
       type: {class: RotateTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -28,6 +28,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: Ring
         Duration: 0.9
+        RepeatMode: 1
+        RepeatCount: -1
+        RepeatDelay: 0
         Ease: 1
         UseCustomCurve: 0
         CustomCurve:
@@ -64,7 +67,7 @@ MonoBehaviour:
         Components: 7
         LocalSpace: 1
         ShortestPath: 1
-    - rid: 1140458142533943308
+    - rid: 1140458162847219727
       type: {class: JumpAnchorPositionTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -73,6 +76,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: Spark
         Duration: 0.9
+        RepeatMode: 1
+        RepeatCount: -1
+        RepeatDelay: 0.08
         Ease: 1
         UseCustomCurve: 0
         CustomCurve:
@@ -109,7 +115,7 @@ MonoBehaviour:
         Components: 3
         JumpPower: 13
         Jumps: 2
-    - rid: 1140458142533943309
+    - rid: 1140458162847219728
       type: {class: PunchScaleTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -117,7 +123,10 @@ MonoBehaviour:
         Delay: 0
         Target: {fileID: 0}
         TargetKey: Label
-        Duration: 0.9
+        Duration: 0.68
+        RepeatMode: 1
+        RepeatCount: -1
+        RepeatDelay: 0.12
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:

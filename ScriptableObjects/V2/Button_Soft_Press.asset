@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Button_Soft_Press
   m_EditorClassIdentifier: 
   Clips:
-  - rid: 1140458142533943331
+  - rid: 1140458162847219747
   references:
     version: 2
     RefIds:
-    - rid: 1140458142533943331
+    - rid: 1140458162847219747
       type: {class: PunchScaleTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -26,6 +26,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: 
         Duration: 0.22
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:

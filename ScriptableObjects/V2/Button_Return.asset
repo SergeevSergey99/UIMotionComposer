@@ -13,16 +13,16 @@ MonoBehaviour:
   m_Name: Button_Return
   m_EditorClassIdentifier: 
   Clips:
-  - rid: 1140458142533943299
-  - rid: 1140458142533943300
-  - rid: 1140458142533943301
-  - rid: 1140458142533943302
-  - rid: 1140458142533943303
-  - rid: 1140458142533943304
+  - rid: 1140458162847219715
+  - rid: 1140458162847219716
+  - rid: 1140458162847219717
+  - rid: 1140458162847219718
+  - rid: 1140458162847219719
+  - rid: 1140458162847219720
   references:
     version: 2
     RefIds:
-    - rid: 1140458142533943299
+    - rid: 1140458162847219715
       type: {class: ScaleTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -31,6 +31,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: 
         Duration: 0.18
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:
@@ -65,7 +68,7 @@ MonoBehaviour:
         ToValue: {x: 0, y: 0, z: 0}
         ToOffset: {x: 0, y: 0, z: 0}
         Components: 7
-    - rid: 1140458142533943300
+    - rid: 1140458162847219716
       type: {class: ScaleTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -74,6 +77,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: Label
         Duration: 0.18
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:
@@ -108,7 +114,7 @@ MonoBehaviour:
         ToValue: {x: 0, y: 0, z: 0}
         ToOffset: {x: 0, y: 0, z: 0}
         Components: 7
-    - rid: 1140458142533943301
+    - rid: 1140458162847219717
       type: {class: ScaleTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -117,6 +123,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: Spark
         Duration: 0.18
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:
@@ -151,7 +160,7 @@ MonoBehaviour:
         ToValue: {x: 0, y: 0, z: 0}
         ToOffset: {x: 0, y: 0, z: 0}
         Components: 7
-    - rid: 1140458142533943302
+    - rid: 1140458162847219718
       type: {class: RotateTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -160,6 +169,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: Ring
         Duration: 0.18
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:
@@ -196,7 +208,7 @@ MonoBehaviour:
         Components: 7
         LocalSpace: 1
         ShortestPath: 1
-    - rid: 1140458142533943303
+    - rid: 1140458162847219719
       type: {class: AnchorPositionTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -205,6 +217,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: Spark
         Duration: 0.18
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:
@@ -239,7 +254,7 @@ MonoBehaviour:
         ToValue: {x: 0, y: 0}
         ToOffset: {x: 0, y: 0}
         Components: 3
-    - rid: 1140458142533943304
+    - rid: 1140458162847219720
       type: {class: ColorTweenClip, ns: UIMotionComposer.V2, asm: Assembly-CSharp-firstpass}
       data:
         Enabled: 1
@@ -248,6 +263,9 @@ MonoBehaviour:
         Target: {fileID: 0}
         TargetKey: Glow
         Duration: 0.2
+        RepeatMode: 0
+        RepeatCount: 1
+        RepeatDelay: 0
         Ease: 6
         UseCustomCurve: 0
         CustomCurve:

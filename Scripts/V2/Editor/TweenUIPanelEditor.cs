@@ -146,11 +146,7 @@ namespace UIMotionComposer.V2.Editor
         {
             // Not a null-conditional chain: lifting the enum makes "null != None" true, so a missing
             // animation would fall straight through into dereferencing it.
-            TweenAnimation animation = player.FindAnimation(id);
-            if (animation?.Playback == null)
-                return;
-
-            if (animation.Playback.LoopMode != TweenLoopMode.None && animation.Playback.LoopCount < 0)
+            if (player.IsInfinite(id))
                 EditorGUILayout.HelpBox($"{role} uses an infinite loop, so the panel transition will never complete.", MessageType.Warning);
         }
     }
