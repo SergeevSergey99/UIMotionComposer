@@ -866,6 +866,11 @@ namespace UIMotionComposer.V2.Editor
                 if (clip.isExpanded)
                 {
                     EditorGUI.indentLevel++;
+                    using (new EditorGUI.DisabledScope(true))
+                    {
+                        EditorGUILayout.TextField("Clip Type", MenuPath(value.GetType()).Replace("/", " / "));
+                    }
+
                     SerializedProperty child = clip.Copy();
                     SerializedProperty end = clip.GetEndProperty();
                     bool enterChildren = true;
