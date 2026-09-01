@@ -1,8 +1,10 @@
 using System;
 using UnityEngine;
+using UnityEngine.Scripting.APIUpdating;
 
 namespace UIMotionComposer.V2
 {
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "PunchScaleTweenClip")]
     [Serializable, TweenClipMenu("Effects/Punch Scale")]
     public sealed class PunchScaleTweenClip : DurationTweenClip
     {
@@ -55,6 +57,7 @@ namespace UIMotionComposer.V2
         }
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "PunchAnchorPositionTweenClip")]
     [Serializable, TweenClipMenu("Effects/Punch Anchor Position")]
     public sealed class PunchAnchorPositionTweenClip : DurationTweenClip
     {
@@ -106,6 +109,7 @@ namespace UIMotionComposer.V2
         }
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "ShakeTweenClip")]
     [Serializable, TweenClipMenu("Effects/Shake")]
     public sealed class ShakeTweenClip : DurationTweenClip
     {
@@ -194,6 +198,7 @@ namespace UIMotionComposer.V2
         }
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "JumpAnchorPositionTweenClip")]
     [Serializable, TweenClipMenu("Effects/Jump Anchor Position")]
     public sealed class JumpAnchorPositionTweenClip : Vector2TweenClip
     {

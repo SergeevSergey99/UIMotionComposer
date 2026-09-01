@@ -3,9 +3,11 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
+using UnityEngine.Scripting.APIUpdating;
 
 namespace UIMotionComposer.V2
 {
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "EventTweenClip")]
     [Serializable, TweenClipMenu("Utility/Event")]
     public sealed class EventTweenClip : TriggerTweenClip
     {
@@ -24,6 +26,7 @@ namespace UIMotionComposer.V2
         internal override void Restore(TweenPlayer player, TweenClipState state) { }
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "ToggleObjectTweenClip")]
     [Serializable, TweenClipMenu("Utility/Toggle Object")]
     public sealed class ToggleObjectTweenClip : TargetedTriggerTweenClip
     {
@@ -59,6 +62,7 @@ namespace UIMotionComposer.V2
         }
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "PlayTweenAnimationClip")]
     [Serializable, TweenClipMenu("Utility/Play Tween Animation")]
     public sealed class PlayTweenAnimationClip : TargetedTriggerTweenClip
     {
@@ -141,6 +145,7 @@ namespace UIMotionComposer.V2
         }
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "TextRevealTweenClip")]
     [Serializable, TweenClipMenu("Text/Text Reveal")]
     public sealed class TextRevealTweenClip : DurationTweenClip
     {
@@ -258,6 +263,7 @@ namespace UIMotionComposer.V2
         }
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "TextCounterTweenClip")]
     [Serializable, TweenClipMenu("Text/Text Counter")]
     public sealed class TextCounterTweenClip : DurationTweenClip
     {

@@ -53,6 +53,12 @@ namespace UIMotionComposer.V2.Tests
         }
 
         [Test]
+        public void ClipTypes_RemapSerializeReferencesFromPreAsmdefAssembly()
+        {
+            TweenV2Validation.ValidateClipMigrationMetadata();
+        }
+
+        [Test]
         public void Preview_SamplesMidpointAndRestoresOnStop()
         {
             TweenV2Validation.ValidatePreviewSampling(_player, _rect, _canvasGroup);

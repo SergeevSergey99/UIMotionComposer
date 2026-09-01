@@ -19,6 +19,7 @@ namespace UIMotionComposer.V2.Editor
                 animationAsset = ScriptableObject.CreateInstance<TweenAnimationAsset>();
                 ValidateAssetScript(animationAsset);
                 ValidateClipHierarchy(animationAsset);
+                ValidateClipMigrationMetadata();
 
                 gameObject = CreateFixture(out RectTransform rect, out CanvasGroup canvasGroup,
                     out TweenPlayer player);
@@ -70,6 +71,34 @@ namespace UIMotionComposer.V2.Editor
             MonoScript assetScript = MonoScript.FromScriptableObject(animationAsset);
             Require(assetScript != null && assetScript.GetClass() == typeof(TweenAnimationAsset),
                 "TweenAnimationAsset does not resolve to its own MonoScript file.");
+        }
+
+        internal static void ValidateClipMigrationMetadata()
+        {
+            foreach (Type type in TypeCache.GetTypesDerivedFrom<BaseTweenClip>())
+            {
+                if (type.IsAbstract || type.Assembly != typeof(BaseTweenClip).Assembly)
+                    continue;
+
+                CustomAttributeData movedFrom = null;
+                foreach (CustomAttributeData attribute in type.GetCustomAttributesData())
+                {
+                    if (attribute.AttributeType.FullName ==
+                        "UnityEngine.Scripting.APIUpdating.MovedFromAttribute")
+                    {
+                        movedFrom = attribute;
+                        break;
+                    }
+                }
+
+                Require(movedFrom != null,
+                    $"{type.Name} is missing MovedFrom metadata for pre-asmdef SerializeReference data.");
+                Require(movedFrom.ConstructorArguments.Count == 4 &&
+                        (string)movedFrom.ConstructorArguments[1].Value == "UIMotionComposer.V2" &&
+                        (string)movedFrom.ConstructorArguments[2].Value == "Assembly-CSharp-firstpass" &&
+                        (string)movedFrom.ConstructorArguments[3].Value == type.Name,
+                    $"{type.Name} has incorrect MovedFrom source metadata.");
+            }
         }
 
         /// <summary>Returns the animation it authored so later checks can keep editing it.</summary>

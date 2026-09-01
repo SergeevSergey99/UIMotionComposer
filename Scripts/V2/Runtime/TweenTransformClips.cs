@@ -1,8 +1,10 @@
 using System;
 using UnityEngine;
+using UnityEngine.Scripting.APIUpdating;
 
 namespace UIMotionComposer.V2
 {
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "MoveTweenClip")]
     [Serializable, TweenClipMenu("Transform/Move")]
     public sealed class MoveTweenClip : Vector3TweenClip
     {
@@ -29,6 +31,7 @@ namespace UIMotionComposer.V2
         }
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "ScaleTweenClip")]
     [Serializable, TweenClipMenu("Transform/Scale")]
     public sealed class ScaleTweenClip : Vector3TweenClip
     {
@@ -43,6 +46,7 @@ namespace UIMotionComposer.V2
         protected override void Write(UnityEngine.Object target, Vector3 value) => ((Transform)target).localScale = value;
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "RotateTweenClip")]
     [Serializable, TweenClipMenu("Transform/Rotate")]
     public sealed class RotateTweenClip : Vector3TweenClip
     {
@@ -78,6 +82,7 @@ namespace UIMotionComposer.V2
         }
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "AnchorPositionTweenClip")]
     [Serializable, TweenClipMenu("Rect Transform/Anchor Position")]
     public sealed class AnchorPositionTweenClip : Vector2TweenClip
     {
@@ -92,6 +97,7 @@ namespace UIMotionComposer.V2
         protected override void Write(UnityEngine.Object target, Vector2 value) => ((RectTransform)target).anchoredPosition = value;
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "AnchorPosition3DTweenClip")]
     [Serializable, TweenClipMenu("Rect Transform/Anchor Position 3D")]
     public sealed class AnchorPosition3DTweenClip : Vector3TweenClip
     {
@@ -106,6 +112,7 @@ namespace UIMotionComposer.V2
         protected override void Write(UnityEngine.Object target, Vector3 value) => ((RectTransform)target).anchoredPosition3D = value;
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "SizeDeltaTweenClip")]
     [Serializable, TweenClipMenu("Rect Transform/Size Delta")]
     public sealed class SizeDeltaTweenClip : Vector2TweenClip
     {
@@ -120,6 +127,7 @@ namespace UIMotionComposer.V2
         protected override void Write(UnityEngine.Object target, Vector2 value) => ((RectTransform)target).sizeDelta = value;
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "PivotTweenClip")]
     [Serializable, TweenClipMenu("Rect Transform/Pivot")]
     public sealed class PivotTweenClip : Vector2TweenClip
     {

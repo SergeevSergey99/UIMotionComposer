@@ -1,9 +1,11 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Scripting.APIUpdating;
 
 namespace UIMotionComposer.V2
 {
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "FadeTweenClip")]
     [Serializable, TweenClipMenu("Visual/Fade")]
     public sealed class FadeTweenClip : FloatTweenClip
     {
@@ -63,6 +65,7 @@ namespace UIMotionComposer.V2
         }
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "ColorTweenClip")]
     [Serializable, TweenClipMenu("Visual/Color")]
     public sealed class ColorTweenClip : DurationTweenClip
     {
@@ -203,6 +206,7 @@ namespace UIMotionComposer.V2
         }
     }
 
+    [MovedFrom(true, "UIMotionComposer.V2", "Assembly-CSharp-firstpass", "FillAmountTweenClip")]
     [Serializable, TweenClipMenu("Visual/Fill Amount")]
     public sealed class FillAmountTweenClip : FloatTweenClip
     {
