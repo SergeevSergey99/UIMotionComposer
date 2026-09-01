@@ -11,7 +11,8 @@ namespace UIMotionComposer.V2
         Normal,
         Hovered,
         Pressed,
-        Disabled
+        Disabled,
+        Selected
     }
 
     /// <summary>
@@ -34,6 +35,7 @@ namespace UIMotionComposer.V2
         [SerializeField] private string normalAnimation = TweenIds.Unhover;
         [SerializeField] private string hoverAnimation = TweenIds.Hover;
         [SerializeField] private string pressedAnimation = TweenIds.Click;
+        [SerializeField] private string selectedAnimation = TweenIds.Hover;
         [SerializeField] private string disabledAnimation = TweenIds.Disabled;
         [SerializeField] private string interactableAnimation = TweenIds.Interactable;
 
@@ -55,10 +57,14 @@ namespace UIMotionComposer.V2
         public Selectable Selectable => selectable;
         public TweenClickableState State { get; private set; } = TweenClickableState.Normal;
         public bool IsInteractable => CanInteract();
+        public bool IsPointerInside => _pointerInside;
+        public bool IsPressed => _pressed;
+        public bool IsSelected => _selected;
 
         public string NormalAnimationId { get => normalAnimation; set => normalAnimation = value; }
         public string HoverAnimationId { get => hoverAnimation; set => hoverAnimation = value; }
         public string PressedAnimationId { get => pressedAnimation; set => pressedAnimation = value; }
+        public string SelectedAnimationId { get => selectedAnimation; set => selectedAnimation = value; }
         public string DisabledAnimationId { get => disabledAnimation; set => disabledAnimation = value; }
         public string InteractableAnimationId { get => interactableAnimation; set => interactableAnimation = value; }
 
@@ -113,7 +119,7 @@ namespace UIMotionComposer.V2
 
             onHoverStarted?.Invoke();
             HoverStarted?.Invoke();
-            if (!_pressed)
+            if (!_pressed && !_selected)
                 TransitionTo(TweenClickableState.Hovered, hoverAnimation);
         }
 
@@ -125,8 +131,8 @@ namespace UIMotionComposer.V2
 
             onHoverEnded?.Invoke();
             HoverEnded?.Invoke();
-            TransitionTo(_selected ? TweenClickableState.Hovered : TweenClickableState.Normal,
-                _selected ? hoverAnimation : normalAnimation);
+            TransitionTo(_selected ? TweenClickableState.Selected : TweenClickableState.Normal,
+                _selected ? selectedAnimation : normalAnimation);
         }
 
         public void OnPointerDown(PointerEventData eventData)
@@ -160,22 +166,29 @@ namespace UIMotionComposer.V2
         public void OnSelect(BaseEventData eventData)
         {
             _selected = true;
-            if (CanInteract() && !_pressed && !_pointerInside)
+            if (CanInteract() && !_pressed)
             {
-                onHoverStarted?.Invoke();
-                HoverStarted?.Invoke();
-                TransitionTo(TweenClickableState.Hovered, hoverAnimation);
+                if (!_pointerInside)
+                {
+                    onHoverStarted?.Invoke();
+                    HoverStarted?.Invoke();
+                }
+                TransitionTo(TweenClickableState.Selected, selectedAnimation);
             }
         }
 
         public void OnDeselect(BaseEventData eventData)
         {
             _selected = false;
-            if (CanInteract() && !_pressed && !_pointerInside)
+            if (CanInteract() && !_pressed)
             {
-                onHoverEnded?.Invoke();
-                HoverEnded?.Invoke();
-                TransitionTo(TweenClickableState.Normal, normalAnimation);
+                if (!_pointerInside)
+                {
+                    onHoverEnded?.Invoke();
+                    HoverEnded?.Invoke();
+                }
+                TransitionTo(_pointerInside ? TweenClickableState.Hovered : TweenClickableState.Normal,
+                    _pointerInside ? hoverAnimation : normalAnimation);
             }
         }
 
@@ -237,6 +250,12 @@ namespace UIMotionComposer.V2
             return TransitionTo(State, AnimationFor(State));
         }
 
+        /// <summary>Forces a state animation. Intended for diagnostics and custom UI tooling.</summary>
+        public TweenHandle PlayStateAnimation(TweenClickableState state)
+        {
+            return TransitionTo(state, AnimationFor(state));
+        }
+
         private void RefreshInteractableState(bool animate)
         {
             bool current = CanInteract();
@@ -252,11 +271,10 @@ namespace UIMotionComposer.V2
             }
             else
             {
-                TweenClickableState rest = _pointerInside || _selected
-                    ? TweenClickableState.Hovered
-                    : TweenClickableState.Normal;
+                TweenClickableState rest = RestState();
                 string animationId = animate
-                    ? (rest == TweenClickableState.Hovered ? hoverAnimation : interactableAnimation)
+                    ? (rest == TweenClickableState.Selected ? selectedAnimation :
+                        rest == TweenClickableState.Hovered ? hoverAnimation : interactableAnimation)
                     : null;
                 TransitionTo(rest, animationId);
             }
@@ -270,9 +288,15 @@ namespace UIMotionComposer.V2
 
         private void ReturnToRestState()
         {
-            bool hovered = _pointerInside || _selected;
-            TransitionTo(hovered ? TweenClickableState.Hovered : TweenClickableState.Normal,
-                hovered ? hoverAnimation : normalAnimation);
+            TweenClickableState rest = RestState();
+            TransitionTo(rest, AnimationFor(rest));
+        }
+
+        private TweenClickableState RestState()
+        {
+            if (_selected)
+                return TweenClickableState.Selected;
+            return _pointerInside ? TweenClickableState.Hovered : TweenClickableState.Normal;
         }
 
         private TweenHandle TransitionTo(TweenClickableState nextState, string animationId)
@@ -308,6 +332,7 @@ namespace UIMotionComposer.V2
             {
                 TweenClickableState.Hovered => hoverAnimation,
                 TweenClickableState.Pressed => pressedAnimation,
+                TweenClickableState.Selected => selectedAnimation,
                 TweenClickableState.Disabled => disabledAnimation,
                 _ => normalAnimation
             };

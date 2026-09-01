@@ -38,11 +38,16 @@ use TweenPlayer's exact snapshot restoration. If the Animation window, Timeline 
 driver is already active, TweenPlayer waits until that mode is closed rather than taking it over.
 
 Add **Tween UI Clickable** beside the player for normal UI controls. It owns the
-`Normal / Hovered / Pressed / Disabled` state machine and stops the previous animation before
-entering the next state, so an infinitely looping Hover cannot leak after pointer exit. Its compact
-inspector only shows state animation IDs and optional events. `SetInteractable(bool)` updates both
-its CanvasGroup and an attached Selectable. The lower-level **UI Event Trigger** remains available
-when raw pointer/navigation events should map independently without a state machine.
+`Normal / Hovered / Selected / Pressed / Disabled` state machine and stops the previous animation
+before entering the next state, so an infinitely looping Hover cannot leak after pointer exit.
+Its inspector resolves the states in the visible priority order
+`Disabled > Pressed > Selected > Hovered > Normal`, shows the resulting event transitions and warns
+about animation IDs missing from the attached player. Each row can preview its end pose in edit mode
+and restores the object when preview ends; in Play Mode the same rows force a state for diagnostics.
+**Conventional IDs** fills the usual Hover/Unhover/Click/Disabled mappings in one click.
+`SetInteractable(bool)` updates both its CanvasGroup and an attached Selectable. The lower-level
+**UI Event Trigger** remains available when raw pointer/navigation events should map independently
+without a state machine.
 
 The clip stack supports move, local/world rotation, scale, anchor position 2D/3D, size, pivot,
 fade, color, image fill, punch, shake, jump, events, GameObject toggles, nested animation playback,

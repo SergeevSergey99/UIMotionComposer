@@ -489,6 +489,13 @@ namespace UIMotionComposer.V2.Editor
                     ToMode = TweenEndpointMode.Initial
                 }));
                 player.AnimationDefinitions.Add(StateAnimation(TweenIds.Click, new PunchScaleTweenClip()));
+                player.AnimationDefinitions.Add(StateAnimation(TweenIds.Selected, new ScaleTweenClip
+                {
+                    Duration = 0.2f,
+                    FromMode = TweenEndpointMode.Current,
+                    ToMode = TweenEndpointMode.OffsetFromInitial,
+                    ToOffset = Vector3.one * 0.05f
+                }));
                 player.AnimationDefinitions.Add(StateAnimation(TweenIds.Disabled, new FadeTweenClip
                 {
                     FadeTarget = TweenFadeTarget.CanvasGroup,
@@ -505,11 +512,34 @@ namespace UIMotionComposer.V2.Editor
                     ToMode = TweenEndpointMode.Initial
                 }));
                 player.CaptureInitialValues();
+                clickable.SelectedAnimationId = TweenIds.Selected;
 
                 clickable.OnPointerEnter(null);
                 Require(clickable.State == TweenClickableState.Hovered && player.IsPlaying(TweenIds.Hover),
                     "Pointer enter did not start Hover.");
 
+                clickable.OnSelect(null);
+                Require(clickable.State == TweenClickableState.Selected &&
+                        !player.IsPlaying(TweenIds.Hover) && player.IsPlaying(TweenIds.Selected),
+                    "Selection did not take priority over Hover.");
+
+                clickable.OnPointerExit(null);
+                Require(clickable.State == TweenClickableState.Selected && player.IsPlaying(TweenIds.Selected),
+                    "Pointer exit incorrectly cleared the higher-priority Selected state.");
+
+                clickable.OnPointerDown(null);
+                Require(clickable.State == TweenClickableState.Pressed && player.IsPlaying(TweenIds.Click),
+                    "Pressed did not take priority over Selected.");
+
+                clickable.OnPointerUp(null);
+                Require(clickable.State == TweenClickableState.Selected && player.IsPlaying(TweenIds.Selected),
+                    "Pointer up did not return to Selected.");
+
+                clickable.OnDeselect(null);
+                Require(clickable.State == TweenClickableState.Normal && player.IsPlaying(TweenIds.Unhover),
+                    "Deselect did not return to Normal after the pointer had left.");
+
+                clickable.OnPointerEnter(null);
                 clickable.OnPointerExit(null);
                 Require(clickable.State == TweenClickableState.Normal && !player.IsPlaying(TweenIds.Hover) &&
                         player.IsPlaying(TweenIds.Unhover),

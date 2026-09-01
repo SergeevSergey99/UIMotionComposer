@@ -140,6 +140,7 @@ namespace UIMotionComposer.V2
         public const string Click = "Click";
         public const string Hover = "Hover";
         public const string Unhover = "Unhover";
+        public const string Selected = "Selected";
         public const string Interactable = "Interactable";
         public const string Disabled = "Disabled";
         public const string Success = "Success";
