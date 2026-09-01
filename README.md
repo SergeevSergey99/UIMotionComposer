@@ -23,7 +23,10 @@ scenes keep working while screens are migrated one at a time.
 3. Press **+ Add clip** and choose clips from Transform, Rect Transform, Visual, Effects or Utility.
 4. Move and resize the colored blocks in **Visual Timeline**, or enter exact Delay and Duration
    values in the clip fields. Blocks overlap naturally; snapping defaults to 0.05 seconds and can
-   be disabled temporarily with Alt.
+   be disabled temporarily with Alt. Use the Zoom slider or Ctrl+wheel over the ruler/lanes, then
+   pan with the scrollbar or Shift+wheel. Ctrl/Command-click toggles clips, Shift-click selects a
+   range, and dragging empty lane space creates a marquee selection. Selected clips move together;
+   the selection toolbar can align or nudge their starts and move their rows up or down.
 5. Press **Capture Initial Pose** once the object and its layout look right. `Initial` and
    `Offset From Initial` keep using this serialized authoring snapshot until it is recaptured.
 6. Scrub **Edit-mode preview**, rewind with **|<**, or press **Play preview**. **Loop** repeats the
