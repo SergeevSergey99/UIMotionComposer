@@ -27,7 +27,10 @@ namespace UIMotionComposer
         private readonly Dictionary<string, object> _initialValues = new Dictionary<string, object>();
         private readonly Dictionary<TweenAnimation, List<ResolvedEndpointSnapshot>> _forwardEndpoints =
             new Dictionary<TweenAnimation, List<ResolvedEndpointSnapshot>>();
+        private readonly Dictionary<TweenTargetOverride, UnityEngine.Object> _targetBindingCache =
+            new Dictionary<TweenTargetOverride, UnityEngine.Object>();
         private bool _isCapturingInitialValues;
+        private TweenAnimation _targetResolutionAnimation;
         private TweenPlayback _preview;
 
         private sealed class ResolvedEndpointSnapshot
@@ -54,6 +57,7 @@ namespace UIMotionComposer
 
         private void OnEnable()
         {
+            _targetBindingCache.Clear();
             if (!Application.isPlaying)
                 return;
 
@@ -298,12 +302,20 @@ namespace UIMotionComposer
                     if (animation == null)
                         continue;
 
-                    IReadOnlyList<BaseTweenClip> clips = animation.EffectiveClips;
-                    for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+                    TweenAnimation previous = PushTargetResolution(animation);
+                    try
                     {
-                        BaseTweenClip clip = clips[clipIndex];
-                        if (clip != null && clip.Enabled)
-                            clip.Capture(this);
+                        IReadOnlyList<BaseTweenClip> clips = animation.EffectiveClips;
+                        for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+                        {
+                            BaseTweenClip clip = clips[clipIndex];
+                            if (clip != null && clip.Enabled)
+                                clip.Capture(this);
+                        }
+                    }
+                    finally
+                    {
+                        PopTargetResolution(previous);
                     }
                 }
             }
@@ -329,6 +341,7 @@ namespace UIMotionComposer
             StopPreview();
             _initialValues.Clear();
             _forwardEndpoints.Clear();
+            _targetBindingCache.Clear();
         }
 
         public TweenAnimation FindAnimation(string animationId)
@@ -350,12 +363,9 @@ namespace UIMotionComposer
         {
             if (!string.IsNullOrWhiteSpace(key))
             {
-                for (int i = 0; i < targetOverrides.Count; i++)
-                {
-                    TweenTargetOverride entry = targetOverrides[i];
-                    if (entry != null && entry.Key == key && entry.Target != null)
-                        return entry.Target;
-                }
+                UnityEngine.Object resolved = ResolveTargetBinding(key, _targetResolutionAnimation);
+                if (resolved != null)
+                    return resolved;
 
                 // A named slot is an explicit target contract. Falling back to this GameObject when
                 // a shared asset forgot its binding animates the wrong object and is very difficult
@@ -364,6 +374,128 @@ namespace UIMotionComposer
             }
 
             return directTarget != null ? directTarget : gameObject;
+        }
+
+        /// <summary>
+        /// Resolves a portable target slot for runtime code and editor diagnostics. Animation-local
+        /// bindings are checked before the TweenPlayer-wide table.
+        /// </summary>
+        public UnityEngine.Object ResolveTargetBinding(string key, TweenAnimation animation = null)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            TweenTargetOverride entry = FindTargetBinding(animation?.TargetOverrides, key) ??
+                                        FindTargetBinding(targetOverrides, key);
+            return ResolveTargetBinding(entry);
+        }
+
+        /// <summary>Clears cached Child/Component binding results after changing hierarchy or rules.</summary>
+        public void InvalidateTargetBindings()
+        {
+            _targetBindingCache.Clear();
+        }
+
+        internal TweenAnimation PushTargetResolution(TweenAnimation animation)
+        {
+            TweenAnimation previous = _targetResolutionAnimation;
+            _targetResolutionAnimation = animation;
+            return previous;
+        }
+
+        internal void PopTargetResolution(TweenAnimation previous)
+        {
+            _targetResolutionAnimation = previous;
+        }
+
+        private static TweenTargetOverride FindTargetBinding(IReadOnlyList<TweenTargetOverride> bindings,
+            string key)
+        {
+            if (bindings == null)
+                return null;
+
+            for (int i = 0; i < bindings.Count; i++)
+            {
+                TweenTargetOverride entry = bindings[i];
+                if (entry != null && string.Equals(entry.Key, key, StringComparison.Ordinal))
+                    return entry;
+            }
+
+            return null;
+        }
+
+        private UnityEngine.Object ResolveTargetBinding(TweenTargetOverride entry)
+        {
+            if (entry == null)
+                return null;
+
+            if (entry.Mode == TweenTargetBindingMode.Direct)
+                return entry.Target;
+            if (entry.Mode == TweenTargetBindingMode.Self)
+                return gameObject;
+
+            if (_targetBindingCache.TryGetValue(entry, out UnityEngine.Object cached) && cached != null)
+                return cached;
+
+            string query = string.IsNullOrWhiteSpace(entry.Query) ? entry.Key : entry.Query.Trim();
+            UnityEngine.Object resolved = entry.Mode switch
+            {
+                TweenTargetBindingMode.ChildPath => FindChildByPath(query)?.gameObject,
+                TweenTargetBindingMode.ChildName => FindChildByName(query)?.gameObject,
+                TweenTargetBindingMode.Component => FindBoundComponent(query, entry.ComponentType),
+                _ => null
+            };
+
+            if (resolved != null)
+                _targetBindingCache[entry] = resolved;
+            return resolved;
+        }
+
+        private Transform FindChildByPath(string path)
+        {
+            return string.IsNullOrWhiteSpace(path) ? null : transform.Find(path);
+        }
+
+        private Transform FindChildByName(string childName)
+        {
+            if (string.IsNullOrWhiteSpace(childName))
+                return null;
+
+            Transform[] descendants = GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < descendants.Length; i++)
+            {
+                if (descendants[i] != transform &&
+                    string.Equals(descendants[i].name, childName, StringComparison.Ordinal))
+                    return descendants[i];
+            }
+
+            for (int i = 0; i < descendants.Length; i++)
+            {
+                if (descendants[i] != transform &&
+                    string.Equals(descendants[i].name, childName, StringComparison.OrdinalIgnoreCase))
+                    return descendants[i];
+            }
+
+            return null;
+        }
+
+        private Component FindBoundComponent(string query, string componentTypeName)
+        {
+            Type componentType = string.IsNullOrWhiteSpace(componentTypeName)
+                ? null
+                : Type.GetType(componentTypeName, false);
+            if (componentType == null || !typeof(Component).IsAssignableFrom(componentType))
+                return null;
+
+            Transform searchRoot = transform;
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                Transform restricted = FindChildByPath(query) ?? FindChildByName(query);
+                if (restricted != null)
+                    searchRoot = restricted;
+            }
+
+            return searchRoot.GetComponentInChildren(componentType, true);
         }
 
         internal T GetOrCaptureInitial<T>(UnityEngine.Object target, string propertyId,
@@ -485,12 +617,20 @@ namespace UIMotionComposer
                 if (animation == null)
                     continue;
 
-                IReadOnlyList<BaseTweenClip> clips = animation.EffectiveClips;
-                for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+                TweenAnimation previous = PushTargetResolution(animation);
+                try
                 {
-                    BaseTweenClip clip = clips[clipIndex];
-                    if (clip is TargetedTweenClip { Enabled: true } targeted)
-                        CollectRect(targeted.ResolveConfiguredTarget(this), rects);
+                    IReadOnlyList<BaseTweenClip> clips = animation.EffectiveClips;
+                    for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+                    {
+                        BaseTweenClip clip = clips[clipIndex];
+                        if (clip is TargetedTweenClip { Enabled: true } targeted)
+                            CollectRect(targeted.ResolveConfiguredTarget(this), rects);
+                    }
+                }
+                finally
+                {
+                    PopTargetResolution(previous);
                 }
             }
 
@@ -706,15 +846,23 @@ namespace UIMotionComposer
 
             // Capture every property before any clip writes its From value. This keeps parallel
             // clips deterministic and lets preview restore the exact authored state.
-            for (int i = 0; i < clips.Count; i++)
+            TweenAnimation previous = player.PushTargetResolution(animation);
+            try
             {
-                BaseTweenClip clip = clips[i];
-                if (clip == null || !clip.Enabled)
-                    continue;
+                for (int i = 0; i < clips.Count; i++)
+                {
+                    BaseTweenClip clip = clips[i];
+                    if (clip == null || !clip.Enabled)
+                        continue;
 
-                TweenClipState state = clip.Capture(player);
-                if (state != null)
-                    playback._states.Add(state);
+                    TweenClipState state = clip.Capture(player);
+                    if (state != null)
+                        playback._states.Add(state);
+                }
+            }
+            finally
+            {
+                player.PopTargetResolution(previous);
             }
 
             if (playback._states.Count == 0)

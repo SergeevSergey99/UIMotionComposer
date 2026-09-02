@@ -80,6 +80,16 @@ Assign the asset to an animation and bind its slots on each TweenPlayer. An empt
 player root. A named but unbound slot is reported and skipped instead of silently animating the wrong
 object.
 
+The inspector derives the expected target type and all consuming clips for every slot. Bindings can
+use an explicit object, the player itself, a relative child path, a descendant name, or a component
+search. **Auto Bind All** uses slot names and only falls back to a type match when that match is
+unambiguous. Each row reports Missing, Wrong type or Resolved and provides Find, Ping and Clear
+actions.
+
+Enable **Local** on a slot to override its player-wide binding only for the selected animation. This
+lets several animations reuse the same shared asset with different children without duplicating the
+asset or changing the default binding used by the rest of the player.
+
 The reusable presets are in `ScriptableObjects/Presets`. Rebuild them with
 **Tools/UI Motion Composer/Rebuild preset library**.
 

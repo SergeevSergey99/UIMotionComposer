@@ -72,6 +72,24 @@ namespace UIMotionComposer
         Renderer
     }
 
+    public enum TweenTargetBindingMode
+    {
+        [Tooltip("Use the explicitly assigned scene or prefab object.")]
+        Direct,
+
+        [Tooltip("Use the GameObject that owns this TweenPlayer.")]
+        Self,
+
+        [Tooltip("Find a descendant by a slash-separated path relative to this TweenPlayer.")]
+        ChildPath,
+
+        [Tooltip("Find the first descendant with this name, including inactive objects.")]
+        ChildName,
+
+        [Tooltip("Find a component of the selected type below this TweenPlayer. Query may optionally restrict the search to a child path or name.")]
+        Component
+    }
+
     [Serializable]
     public sealed class TweenPlaybackSettings
     {
@@ -104,6 +122,9 @@ namespace UIMotionComposer
         [SerializeReference]
         public List<BaseTweenClip> Clips = new List<BaseTweenClip>();
 
+        [Tooltip("Optional per-animation target bindings. These override the TweenPlayer bindings only while this animation is captured or played.")]
+        public List<TweenTargetOverride> TargetOverrides = new List<TweenTargetOverride>();
+
         public UnityEvent OnStarted = new UnityEvent();
         public UnityEvent OnCompleted = new UnityEvent();
         public UnityEvent OnCancelled = new UnityEvent();
@@ -116,7 +137,14 @@ namespace UIMotionComposer
     public sealed class TweenTargetOverride
     {
         public string Key;
+        public TweenTargetBindingMode Mode = TweenTargetBindingMode.Direct;
         public UnityEngine.Object Target;
+
+        [Tooltip("Child path or name used by automatic binding modes. When empty, the slot key is used.")]
+        public string Query;
+
+        [Tooltip("Assembly-qualified Component type used by Component mode.")]
+        public string ComponentType;
     }
 
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]

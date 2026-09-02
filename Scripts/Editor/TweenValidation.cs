@@ -653,7 +653,72 @@ namespace UIMotionComposer.Editor
             Require(Mathf.Abs(playerCanvasGroup.alpha - 0.8f) < 0.001f,
                 "A bound target slot changed the TweenPlayer root.");
             player.StopPreview();
+
+            TweenTargetOverride binding = player.TargetOverrideDefinitions[0];
+            binding.Mode = TweenTargetBindingMode.Self;
+            binding.Target = null;
+            player.InvalidateTargetBindings();
+            Require(player.Preview("Validation", 0.5f), "Self binding could not be sampled.");
+            Require(Mathf.Abs(playerCanvasGroup.alpha - 0.5f) < 0.001f,
+                "Self binding did not resolve the TweenPlayer GameObject.");
+            player.StopPreview();
+
+            var container = new GameObject("Container", typeof(RectTransform));
+            container.transform.SetParent(player.transform, false);
+            var pathChild = new GameObject("PathContent", typeof(RectTransform), typeof(CanvasGroup));
+            pathChild.transform.SetParent(container.transform, false);
+            CanvasGroup pathCanvasGroup = pathChild.GetComponent<CanvasGroup>();
+            pathCanvasGroup.alpha = 0.3f;
+            binding.Mode = TweenTargetBindingMode.ChildPath;
+            binding.Query = "Container/PathContent";
+            player.InvalidateTargetBindings();
+            Require(player.Preview("Validation", 0.5f), "Child Path binding could not be sampled.");
+            Require(Mathf.Abs(pathCanvasGroup.alpha - 0.5f) < 0.001f,
+                "Child Path binding resolved the wrong descendant.");
+            player.StopPreview();
+
+            var namedChild = new GameObject("NamedContent", typeof(RectTransform), typeof(CanvasGroup));
+            namedChild.transform.SetParent(player.transform, false);
+            CanvasGroup namedCanvasGroup = namedChild.GetComponent<CanvasGroup>();
+            namedCanvasGroup.alpha = 0.4f;
+            binding.Mode = TweenTargetBindingMode.ChildName;
+            binding.Query = "NamedContent";
+            player.InvalidateTargetBindings();
+            Require(player.Preview("Validation", 0.5f), "Child Name binding could not be sampled.");
+            Require(Mathf.Abs(namedCanvasGroup.alpha - 0.5f) < 0.001f,
+                "Child Name binding resolved the wrong descendant.");
+            player.StopPreview();
+
+            binding.Mode = TweenTargetBindingMode.Component;
+            binding.Query = "NamedContent";
+            binding.ComponentType = typeof(CanvasGroup).AssemblyQualifiedName;
+            player.InvalidateTargetBindings();
+            Require(player.ResolveTargetBinding("Content", animation) == namedCanvasGroup,
+                "Component binding did not resolve the requested component type.");
+
+            var localChild = new GameObject("LocalContent", typeof(RectTransform), typeof(CanvasGroup));
+            localChild.transform.SetParent(player.transform, false);
+            CanvasGroup localCanvasGroup = localChild.GetComponent<CanvasGroup>();
+            localCanvasGroup.alpha = 0.25f;
+            binding.Mode = TweenTargetBindingMode.Direct;
+            binding.Target = child;
+            binding.Query = string.Empty;
+            binding.ComponentType = string.Empty;
+            animation.TargetOverrides.Add(new TweenTargetOverride
+            {
+                Key = "Content",
+                Mode = TweenTargetBindingMode.Direct,
+                Target = localChild
+            });
+            player.InvalidateTargetBindings();
+            Require(player.Preview("Validation", 0.5f), "Animation-local target override could not be sampled.");
+            Require(Mathf.Abs(localCanvasGroup.alpha - 0.5f) < 0.001f &&
+                    Mathf.Abs(childCanvasGroup.alpha - 0.2f) < 0.001f,
+                "Animation-local target override did not take priority over the player binding.");
+            player.StopPreview();
+            animation.TargetOverrides.Clear();
             player.TargetOverrideDefinitions.Clear();
+            player.InvalidateTargetBindings();
         }
 
         /// <summary>

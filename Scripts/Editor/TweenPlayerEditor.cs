@@ -5,6 +5,7 @@ using UIMotionComposer.Tweening;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace UIMotionComposer.Editor
 {
@@ -190,7 +191,7 @@ namespace UIMotionComposer.Editor
                     {
                         TweenTimelineEditor.Draw(assetSource, sharedClips, _previewTime,
                             normalized => ScrubTimeline(id.stringValue, normalized));
-                        DrawTargetBindings(sharedClips);
+                        DrawTargetBindings(animation, sharedClips);
                     }
                     EditorGUILayout.HelpBox(
                         "Timing and target slot names come from the shared asset. Their concrete objects are stored locally on this TweenPlayer.",
@@ -203,7 +204,7 @@ namespace UIMotionComposer.Editor
                     TweenTimelineEditor.Draw(serializedObject, clips, _previewTime,
                         normalized => ScrubTimeline(id.stringValue, normalized));
                     TweenClipEditorUtility.DrawClipList(serializedObject, clips, "Clips");
-                    DrawTargetBindings(clips);
+                    DrawTargetBindings(animation, clips);
                 }
 
                 DrawPreview(id.stringValue);
@@ -222,16 +223,36 @@ namespace UIMotionComposer.Editor
             }
         }
 
-        private void DrawTargetBindings(SerializedProperty clips)
+        private sealed class TargetRequirement
         {
-            List<string> keys = TweenClipEditorUtility.CollectTargetKeys(clips);
-            if (keys.Count == 0)
+            public string Label;
+            public Type[] Types;
+        }
+
+        private sealed class TargetSlotInfo
+        {
+            public string Key;
+            public readonly List<string> Consumers = new List<string>();
+            public readonly List<TargetRequirement> Requirements = new List<TargetRequirement>();
+
+            public string Expected => string.Join(" + ", Requirements.Select(item => item.Label).Distinct());
+        }
+
+        private void DrawTargetBindings(SerializedProperty animation, SerializedProperty clips)
+        {
+            List<TargetSlotInfo> slots = CollectTargetSlots(clips);
+            if (slots.Count == 0)
                 return;
 
             EditorGUILayout.Space(4f);
-            EditorGUILayout.LabelField("Target bindings", EditorStyles.boldLabel);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField($"Target bindings ({slots.Count})", EditorStyles.boldLabel);
+                if (GUILayout.Button("Auto Bind All", GUILayout.Width(96f)))
+                    AutoBindAll(animation, slots);
+            }
             EditorGUILayout.HelpBox(
-                "The animation stores portable slot names. Assign the concrete object for this player here. A missing slot is skipped instead of animating the player root by mistake.",
+                "Slots may use a direct object, this player, a child path/name, or a component search. Local overrides affect only this animation.",
                 MessageType.Info);
 
             if (targets.Length != 1)
@@ -240,98 +261,393 @@ namespace UIMotionComposer.Editor
                 return;
             }
 
-            bool hasMissing = false;
-            foreach (string key in keys)
+            SerializedProperty localBindings = animation.FindPropertyRelative("TargetOverrides");
+            TweenAnimation runtimeAnimation = CurrentAnimation();
+            bool hasProblem = false;
+            foreach (TargetSlotInfo slot in slots)
             {
-                int index = FindTargetBinding(key);
-                SerializedProperty targetProperty = index >= 0
-                    ? _targetOverrides.GetArrayElementAtIndex(index).FindPropertyRelative("Target")
-                    : null;
-                UnityEngine.Object current = targetProperty?.objectReferenceValue;
+                int localIndex = FindTargetBinding(localBindings, slot.Key);
+                int globalIndex = FindTargetBinding(_targetOverrides, slot.Key);
+                bool useLocal = localIndex >= 0;
+                SerializedProperty bindings = useLocal ? localBindings : _targetOverrides;
+                int index = useLocal ? localIndex : globalIndex;
+                SerializedProperty entry = index >= 0 ? bindings.GetArrayElementAtIndex(index) : null;
+                UnityEngine.Object resolved = Player.ResolveTargetBinding(slot.Key, runtimeAnimation);
+                bool valid = resolved != null && TargetSatisfies(resolved, slot);
+                hasProblem |= !valid;
 
-                using (new EditorGUILayout.HorizontalScope())
+                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
                 {
-                    EditorGUI.BeginChangeCheck();
-                    UnityEngine.Object next = EditorGUILayout.ObjectField(
-                        new GUIContent(key, $"Object used by the '{key}' target slot."),
-                        current, typeof(UnityEngine.Object), true);
-                    if (EditorGUI.EndChangeCheck())
+                    using (new EditorGUILayout.HorizontalScope())
                     {
-                        if (index < 0)
+                        Color previous = GUI.color;
+                        GUI.color = resolved == null
+                            ? new Color(1f, 0.55f, 0.35f)
+                            : valid ? new Color(0.45f, 0.9f, 0.55f) : new Color(1f, 0.75f, 0.25f);
+                        GUILayout.Label(resolved == null ? "● Missing" : valid ? "● Resolved" : "● Wrong type",
+                            EditorStyles.miniBoldLabel, GUILayout.Width(82f));
+                        GUI.color = previous;
+                        GUILayout.Label(slot.Key, EditorStyles.boldLabel);
+                        GUILayout.FlexibleSpace();
+                        bool nextLocal = GUILayout.Toggle(useLocal, new GUIContent("Local", "Override this slot only for the selected animation."),
+                            EditorStyles.miniButton, GUILayout.Width(48f));
+                        if (nextLocal != useLocal)
                         {
-                            index = _targetOverrides.arraySize;
-                            _targetOverrides.InsertArrayElementAtIndex(index);
-                            SerializedProperty entry = _targetOverrides.GetArrayElementAtIndex(index);
-                            entry.FindPropertyRelative("Key").stringValue = key;
-                            entry.FindPropertyRelative("Target").objectReferenceValue = next;
-                        }
-                        else
-                        {
-                            targetProperty.objectReferenceValue = next;
+                            if (nextLocal)
+                                CopyOrCreateLocalBinding(localBindings, slot.Key, entry);
+                            else
+                                localBindings.DeleteArrayElementAtIndex(localIndex);
+                            serializedObject.ApplyModifiedProperties();
+                            Player.InvalidateAuthoringCache();
+                            GUIUtility.ExitGUI();
                         }
                     }
 
-                    using (new EditorGUI.DisabledScope(current != null))
+                    EditorGUILayout.LabelField($"Expected: {slot.Expected}", EditorStyles.miniLabel);
+                    EditorGUILayout.LabelField($"Used by: {string.Join(", ", slot.Consumers)}", EditorStyles.miniLabel);
+
+                    if (entry == null)
                     {
-                        if (GUILayout.Button("Find", GUILayout.Width(42f)))
+                        EditorGUILayout.HelpBox("No binding rule yet. Create one or let Auto Bind search the hierarchy.", MessageType.None);
+                        if (GUILayout.Button("Create binding"))
+                            EnsureBinding(bindings, slot.Key);
+                    }
+                    else
+                    {
+                        DrawBindingRule(entry, slot);
+                        DrawBindingActions(entry, slot, runtimeAnimation, resolved);
+                    }
+                }
+            }
+
+            if (hasProblem)
+                EditorGUILayout.HelpBox("Missing or incompatible slots are skipped during playback. Use Auto Bind All or inspect the highlighted rows.", MessageType.Warning);
+        }
+
+        private void DrawBindingRule(SerializedProperty entry, TargetSlotInfo slot)
+        {
+            SerializedProperty mode = entry.FindPropertyRelative("Mode");
+            EditorGUILayout.PropertyField(mode, new GUIContent("Mode"));
+            var bindingMode = (TweenTargetBindingMode)mode.enumValueIndex;
+
+            switch (bindingMode)
+            {
+                case TweenTargetBindingMode.Direct:
+                    EditorGUILayout.PropertyField(entry.FindPropertyRelative("Target"), new GUIContent("Object"));
+                    break;
+                case TweenTargetBindingMode.Self:
+                    EditorGUILayout.ObjectField("Resolved from", Player.gameObject, typeof(GameObject), true);
+                    break;
+                case TweenTargetBindingMode.ChildPath:
+                    EditorGUILayout.PropertyField(entry.FindPropertyRelative("Query"),
+                        new GUIContent("Child path", $"Relative path. Empty uses '{slot.Key}'."));
+                    break;
+                case TweenTargetBindingMode.ChildName:
+                    EditorGUILayout.PropertyField(entry.FindPropertyRelative("Query"),
+                        new GUIContent("Child name", $"Descendant name. Empty uses '{slot.Key}'."));
+                    break;
+                case TweenTargetBindingMode.Component:
+                    EditorGUILayout.PropertyField(entry.FindPropertyRelative("Query"),
+                        new GUIContent("Under child", "Optional path or name restricting the component search."));
+                    DrawComponentType(entry.FindPropertyRelative("ComponentType"), slot);
+                    break;
+            }
+        }
+
+        private static void DrawComponentType(SerializedProperty property, TargetSlotInfo slot)
+        {
+            List<Type> options = slot.Requirements
+                .SelectMany(item => item.Types ?? Array.Empty<Type>())
+                .Where(type => type != null && typeof(Component).IsAssignableFrom(type))
+                .Distinct().ToList();
+            if (options.Count == 0)
+                options.Add(typeof(Transform));
+
+            int selected = options.FindIndex(type => type.AssemblyQualifiedName == property.stringValue);
+            string[] names = options.Select(type => type.Name).ToArray();
+            int next = EditorGUILayout.Popup("Component type", Mathf.Max(0, selected), names);
+            if (selected < 0 || next != selected)
+                property.stringValue = options[next].AssemblyQualifiedName;
+        }
+
+        private void DrawBindingActions(SerializedProperty entry, TargetSlotInfo slot,
+            TweenAnimation animation, UnityEngine.Object resolved)
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("Find"))
+                {
+                    string propertyPath = entry.propertyPath;
+                    serializedObject.ApplyModifiedProperties();
+                    Player.InvalidateTargetBindings();
+                    resolved = Player.ResolveTargetBinding(slot.Key, animation);
+                    if (resolved == null)
+                    {
+                        UnityEngine.Object found = FindBestTarget(slot);
+                        if (found != null)
                         {
-                            GameObject found = FindChildForSlot(key);
-                            if (found != null)
-                            {
-                                if (index < 0)
-                                {
-                                    index = _targetOverrides.arraySize;
-                                    _targetOverrides.InsertArrayElementAtIndex(index);
-                                    SerializedProperty entry = _targetOverrides.GetArrayElementAtIndex(index);
-                                    entry.FindPropertyRelative("Key").stringValue = key;
-                                    targetProperty = entry.FindPropertyRelative("Target");
-                                }
-                                targetProperty.objectReferenceValue = found;
-                            }
+                            serializedObject.Update();
+                            entry = serializedObject.FindProperty(propertyPath);
+                            entry.FindPropertyRelative("Mode").enumValueIndex = (int)TweenTargetBindingMode.Direct;
+                            entry.FindPropertyRelative("Target").objectReferenceValue = found;
                         }
                     }
                 }
 
-                if ((index < 0 || _targetOverrides.GetArrayElementAtIndex(index)
-                        .FindPropertyRelative("Target").objectReferenceValue == null))
-                    hasMissing = true;
-            }
+                using (new EditorGUI.DisabledScope(resolved == null))
+                {
+                    if (GUILayout.Button("Ping"))
+                        EditorGUIUtility.PingObject(resolved);
+                }
 
-            if (hasMissing)
-                EditorGUILayout.HelpBox("One or more target slots are not bound. Their clips will be skipped.", MessageType.Warning);
+                if (GUILayout.Button("Clear"))
+                    ResetBinding(entry);
+            }
         }
 
-        private int FindTargetBinding(string key)
+        private void AutoBindAll(SerializedProperty animation, IReadOnlyList<TargetSlotInfo> slots)
         {
-            for (int i = 0; i < _targetOverrides.arraySize; i++)
+            SerializedProperty localBindings = animation.FindPropertyRelative("TargetOverrides");
+            Undo.RecordObject(Player, "Auto bind UI Motion targets");
+            for (int i = 0; i < slots.Count; i++)
             {
-                SerializedProperty entry = _targetOverrides.GetArrayElementAtIndex(i);
-                if (string.Equals(entry.FindPropertyRelative("Key").stringValue, key,
-                        StringComparison.Ordinal))
-                    return i;
+                TargetSlotInfo slot = slots[i];
+                int localIndex = FindTargetBinding(localBindings, slot.Key);
+                SerializedProperty bindings = localIndex >= 0 ? localBindings : _targetOverrides;
+                int index = localIndex >= 0 ? localIndex : FindTargetBinding(bindings, slot.Key);
+                SerializedProperty entry = index >= 0
+                    ? bindings.GetArrayElementAtIndex(index)
+                    : EnsureBinding(bindings, slot.Key);
+                UnityEngine.Object current = Player.ResolveTargetBinding(slot.Key, CurrentAnimation());
+                if (current != null && TargetSatisfies(current, slot))
+                    continue;
+
+                UnityEngine.Object found = FindBestTarget(slot);
+                if (found == null)
+                    continue;
+
+                entry.FindPropertyRelative("Mode").enumValueIndex = (int)TweenTargetBindingMode.Direct;
+                entry.FindPropertyRelative("Target").objectReferenceValue = found;
+                entry.FindPropertyRelative("Query").stringValue = string.Empty;
+                entry.FindPropertyRelative("ComponentType").stringValue = string.Empty;
             }
 
-            return -1;
+            serializedObject.ApplyModifiedProperties();
+            Player.InvalidateAuthoringCache();
+            EditorUtility.SetDirty(Player);
+            serializedObject.Update();
         }
 
-        private GameObject FindChildForSlot(string key)
+        private UnityEngine.Object FindBestTarget(TargetSlotInfo slot)
         {
-            if (string.IsNullOrWhiteSpace(key))
-                return null;
-
-            Transform root = Player.transform;
-            Transform byPath = root.Find(key);
-            if (byPath != null)
+            Transform byPath = Player.transform.Find(slot.Key);
+            if (byPath != null && TargetSatisfies(byPath.gameObject, slot))
                 return byPath.gameObject;
 
-            Transform[] descendants = root.GetComponentsInChildren<Transform>(true);
+            Transform[] descendants = Player.GetComponentsInChildren<Transform>(true);
             for (int i = 0; i < descendants.Length; i++)
             {
-                if (string.Equals(descendants[i].name, key, StringComparison.Ordinal))
+                if (string.Equals(descendants[i].name, slot.Key, StringComparison.OrdinalIgnoreCase) &&
+                    TargetSatisfies(descendants[i].gameObject, slot))
                     return descendants[i].gameObject;
             }
 
-            return null;
+            // A type-only guess is safe only when it is unambiguous. In particular, never bind a
+            // Transform slot to the player root merely because every GameObject has a Transform.
+            UnityEngine.Object unique = null;
+            for (int i = 0; i < descendants.Length; i++)
+            {
+                if (descendants[i] == Player.transform || !TargetSatisfies(descendants[i].gameObject, slot))
+                    continue;
+                if (unique != null)
+                    return null;
+                unique = descendants[i].gameObject;
+            }
+
+            return unique;
+        }
+
+        private static bool TargetSatisfies(UnityEngine.Object target, TargetSlotInfo slot)
+        {
+            if (target == null)
+                return false;
+
+            for (int i = 0; i < slot.Requirements.Count; i++)
+            {
+                TargetRequirement requirement = slot.Requirements[i];
+                if (requirement.Types == null || requirement.Types.Length == 0)
+                    continue;
+                if (!requirement.Types.Any(type => ResolvesAs(target, type)))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static bool ResolvesAs(UnityEngine.Object target, Type type)
+        {
+            if (target == null || type == null)
+                return false;
+            if (type.IsInstanceOfType(target))
+                return true;
+            if (type == typeof(GameObject))
+                return target is Component;
+
+            GameObject gameObject = target switch
+            {
+                GameObject direct => direct,
+                Component component => component.gameObject,
+                _ => null
+            };
+            return gameObject != null && typeof(Component).IsAssignableFrom(type) && gameObject.GetComponent(type) != null;
+        }
+
+        private static int FindTargetBinding(SerializedProperty bindings, string key)
+        {
+            if (bindings == null)
+                return -1;
+            for (int i = 0; i < bindings.arraySize; i++)
+            {
+                SerializedProperty entry = bindings.GetArrayElementAtIndex(i);
+                if (string.Equals(entry.FindPropertyRelative("Key").stringValue, key, StringComparison.Ordinal))
+                    return i;
+            }
+            return -1;
+        }
+
+        private static SerializedProperty EnsureBinding(SerializedProperty bindings, string key)
+        {
+            int index = FindTargetBinding(bindings, key);
+            if (index >= 0)
+                return bindings.GetArrayElementAtIndex(index);
+
+            index = bindings.arraySize;
+            bindings.InsertArrayElementAtIndex(index);
+            SerializedProperty entry = bindings.GetArrayElementAtIndex(index);
+            entry.FindPropertyRelative("Key").stringValue = key;
+            ResetBinding(entry);
+            return entry;
+        }
+
+        private static void CopyOrCreateLocalBinding(SerializedProperty localBindings, string key,
+            SerializedProperty source)
+        {
+            SerializedProperty entry = EnsureBinding(localBindings, key);
+            if (source == null)
+                return;
+            entry.FindPropertyRelative("Mode").enumValueIndex = source.FindPropertyRelative("Mode").enumValueIndex;
+            entry.FindPropertyRelative("Target").objectReferenceValue = source.FindPropertyRelative("Target").objectReferenceValue;
+            entry.FindPropertyRelative("Query").stringValue = source.FindPropertyRelative("Query").stringValue;
+            entry.FindPropertyRelative("ComponentType").stringValue = source.FindPropertyRelative("ComponentType").stringValue;
+        }
+
+        private static void ResetBinding(SerializedProperty entry)
+        {
+            entry.FindPropertyRelative("Mode").enumValueIndex = (int)TweenTargetBindingMode.Direct;
+            entry.FindPropertyRelative("Target").objectReferenceValue = null;
+            entry.FindPropertyRelative("Query").stringValue = string.Empty;
+            entry.FindPropertyRelative("ComponentType").stringValue = string.Empty;
+        }
+
+        private TweenAnimation CurrentAnimation()
+        {
+            return _selectedAnimation >= 0 && _selectedAnimation < Player.AnimationDefinitions.Count
+                ? Player.AnimationDefinitions[_selectedAnimation]
+                : null;
+        }
+
+        private static List<TargetSlotInfo> CollectTargetSlots(SerializedProperty clips)
+        {
+            var result = new List<TargetSlotInfo>();
+            var byKey = new Dictionary<string, TargetSlotInfo>(StringComparer.Ordinal);
+            if (clips == null || !clips.isArray)
+                return result;
+
+            for (int i = 0; i < clips.arraySize; i++)
+            {
+                if (clips.GetArrayElementAtIndex(i).managedReferenceValue is not TargetedTweenClip clip)
+                    continue;
+                string key = clip.TargetKey?.Trim();
+                if (string.IsNullOrEmpty(key))
+                    continue;
+
+                if (!byKey.TryGetValue(key, out TargetSlotInfo slot))
+                {
+                    slot = new TargetSlotInfo { Key = key };
+                    byKey.Add(key, slot);
+                    result.Add(slot);
+                }
+
+                string consumer = string.IsNullOrWhiteSpace(clip.Label)
+                    ? ObjectNames.NicifyVariableName(clip.GetType().Name.Replace("TweenClip", string.Empty))
+                    : clip.Label;
+                slot.Consumers.Add(consumer);
+                TargetRequirement requirement = RequirementFor(clip);
+                if (!slot.Requirements.Any(item => item.Label == requirement.Label))
+                    slot.Requirements.Add(requirement);
+            }
+
+            return result;
+        }
+
+        private static TargetRequirement RequirementFor(TargetedTweenClip clip)
+        {
+            switch (clip)
+            {
+                case AnchorPositionTweenClip:
+                case AnchorPosition3DTweenClip:
+                case SizeDeltaTweenClip:
+                case PivotTweenClip:
+                case PunchAnchorPositionTweenClip:
+                case JumpAnchorPositionTweenClip:
+                    return Requirement("RectTransform", typeof(RectTransform));
+                case ShakeTweenClip shake when shake.UseAnchoredPosition:
+                    return Requirement("RectTransform", typeof(RectTransform));
+                case MoveTweenClip:
+                case ScaleTweenClip:
+                case RotateTweenClip:
+                case PunchScaleTweenClip:
+                case ShakeTweenClip:
+                    return Requirement("Transform", typeof(Transform));
+                case FillAmountTweenClip:
+                    return Requirement("Image", typeof(Image));
+                case PlayTweenAnimationClip:
+                    return Requirement("TweenPlayer", typeof(TweenPlayer));
+                case ToggleObjectTweenClip:
+                    return Requirement("GameObject", typeof(GameObject));
+                case FadeTweenClip fade:
+                    return fade.FadeTarget switch
+                    {
+                        TweenFadeTarget.CanvasGroup => Requirement("CanvasGroup", typeof(CanvasGroup)),
+                        TweenFadeTarget.Graphic => Requirement("Graphic", typeof(Graphic)),
+                        TweenFadeTarget.SpriteRenderer => Requirement("SpriteRenderer", typeof(SpriteRenderer)),
+                        _ => Requirement("CanvasGroup / Graphic / SpriteRenderer", typeof(CanvasGroup), typeof(Graphic), typeof(SpriteRenderer))
+                    };
+                case ColorTweenClip color:
+                    return color.ColorTarget switch
+                    {
+                        TweenColorTarget.Graphic => Requirement("Graphic", typeof(Graphic)),
+                        TweenColorTarget.SpriteRenderer => Requirement("SpriteRenderer", typeof(SpriteRenderer)),
+                        TweenColorTarget.Renderer => Requirement("Renderer", typeof(Renderer)),
+                        _ => Requirement("Graphic / SpriteRenderer / Renderer", typeof(Graphic), typeof(SpriteRenderer), typeof(Renderer))
+                    };
+                case TextRevealTweenClip:
+                case TextCounterTweenClip:
+                    return Requirement("Text / TMP_Text", TextTypes());
+                default:
+                    return Requirement("Object", typeof(UnityEngine.Object));
+            }
+        }
+
+        private static TargetRequirement Requirement(string label, params Type[] types)
+        {
+            return new TargetRequirement { Label = label, Types = types };
+        }
+
+        private static Type[] TextTypes()
+        {
+            Type tmp = Type.GetType("TMPro.TMP_Text, Unity.TextMeshPro", false);
+            return tmp != null ? new[] { typeof(Text), tmp } : new[] { typeof(Text) };
         }
 
         private void DrawValidationMessages()
