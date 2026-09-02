@@ -1,10 +1,39 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace UIMotionComposer
 {
+    [Serializable]
+    public sealed class TweenInitialPose
+    {
+        [SerializeField] private bool captured;
+        [SerializeField] private List<TweenInitialValue> values = new List<TweenInitialValue>();
+
+        public bool IsCaptured => captured;
+        public int Count => values?.Count ?? 0;
+
+        internal bool Captured
+        {
+            get => captured;
+            set => captured = value;
+        }
+
+        internal List<TweenInitialValue> Values => values ??= new List<TweenInitialValue>();
+
+        internal void ImportLegacy(bool wasCaptured, List<TweenInitialValue> legacyValues)
+        {
+            if (captured || values is { Count: > 0 })
+                return;
+            captured = wasCaptured;
+            values = legacyValues != null
+                ? new List<TweenInitialValue>(legacyValues)
+                : new List<TweenInitialValue>();
+        }
+    }
+
     public readonly struct TweenInitialPoseEntryInfo
     {
         public int Index { get; }
@@ -36,7 +65,7 @@ namespace UIMotionComposer
 
     /// <summary>A stable, serialized authoring value used by Initial and Offset From Initial.</summary>
     [Serializable]
-    internal sealed class TweenInitialValue
+    public sealed class TweenInitialValue
     {
         [SerializeField] private UnityEngine.Object target;
         [SerializeField] private string propertyId;

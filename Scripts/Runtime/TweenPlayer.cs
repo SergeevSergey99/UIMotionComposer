@@ -7,7 +7,7 @@ namespace UIMotionComposer
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("UI/UI Motion Composer/Tween Player")]
-    public sealed class TweenPlayer : MonoBehaviour
+    public sealed class TweenPlayer : MonoBehaviour, ISerializationCallbackReceiver
     {
         [SerializeField]
         private List<TweenAnimation> animations = new List<TweenAnimation>();
@@ -18,6 +18,11 @@ namespace UIMotionComposer
         [SerializeField]
         private List<string> playOnEnable = new List<string>();
 
+        [SerializeField]
+        private TweenInitialPose initialPose = new TweenInitialPose();
+
+        // One-release migration bridge for scenes authored before Initial Pose became its own
+        // serialized field. New data is stored only in initialPose.
         [SerializeField, HideInInspector]
         private bool hasCapturedInitialValues;
 
@@ -43,23 +48,54 @@ namespace UIMotionComposer
 
         public IReadOnlyList<TweenAnimation> Animations => animations;
         public IReadOnlyList<TweenTargetOverride> TargetOverrides => targetOverrides;
-        public bool HasCapturedInitialValues => hasCapturedInitialValues;
-        public int CapturedInitialValueCount => capturedInitialValues?.Count ?? 0;
+        public bool HasCapturedInitialValues => InitialPose.IsCaptured;
+        public int CapturedInitialValueCount => InitialPose.Count;
 
         public TweenInitialPoseEntryInfo[] GetCapturedInitialPoseEntries()
         {
-            if (capturedInitialValues == null || capturedInitialValues.Count == 0)
+            List<TweenInitialValue> values = InitialPose.Values;
+            if (values.Count == 0)
                 return Array.Empty<TweenInitialPoseEntryInfo>();
 
-            var result = new TweenInitialPoseEntryInfo[capturedInitialValues.Count];
-            for (int i = 0; i < capturedInitialValues.Count; i++)
+            var result = new TweenInitialPoseEntryInfo[values.Count];
+            for (int i = 0; i < values.Count; i++)
             {
-                TweenInitialValue entry = capturedInitialValues[i];
+                TweenInitialValue entry = values[i];
                 result[i] = entry != null
                     ? entry.Describe(i)
                     : new TweenInitialPoseEntryInfo(i, null, string.Empty, string.Empty, "—", false);
             }
             return result;
+        }
+
+        private TweenInitialPose InitialPose
+        {
+            get
+            {
+                EnsureInitialPoseMigrated();
+                return initialPose;
+            }
+        }
+
+        public void OnBeforeSerialize()
+        {
+            EnsureInitialPoseMigrated();
+        }
+
+        public void OnAfterDeserialize()
+        {
+            EnsureInitialPoseMigrated();
+        }
+
+        private void EnsureInitialPoseMigrated()
+        {
+            initialPose ??= new TweenInitialPose();
+            if (!hasCapturedInitialValues && (capturedInitialValues == null || capturedInitialValues.Count == 0))
+                return;
+
+            initialPose.ImportLegacy(hasCapturedInitialValues, capturedInitialValues);
+            hasCapturedInitialValues = false;
+            capturedInitialValues = null;
         }
 
         /// <summary>
@@ -305,9 +341,8 @@ namespace UIMotionComposer
 
             _initialValues.Clear();
             _forwardEndpoints.Clear();
-            capturedInitialValues ??= new List<TweenInitialValue>();
-            capturedInitialValues.Clear();
-            hasCapturedInitialValues = true;
+            InitialPose.Values.Clear();
+            InitialPose.Captured = true;
             _isCapturingInitialValues = true;
 
             try
@@ -347,8 +382,8 @@ namespace UIMotionComposer
             StopPreview();
             _initialValues.Clear();
             _forwardEndpoints.Clear();
-            capturedInitialValues?.Clear();
-            hasCapturedInitialValues = false;
+            InitialPose.Values.Clear();
+            InitialPose.Captured = false;
         }
 
         [ContextMenu("Restore Captured Initial Pose")]
@@ -360,11 +395,12 @@ namespace UIMotionComposer
             RebuildDrivenLayouts();
 
             int restored = 0;
-            if (capturedInitialValues != null)
+            List<TweenInitialValue> values = InitialPose.Values;
+            if (values != null)
             {
-                for (int i = 0; i < capturedInitialValues.Count; i++)
+                for (int i = 0; i < values.Count; i++)
                 {
-                    if (capturedInitialValues[i]?.TryApply() == true)
+                    if (values[i]?.TryApply() == true)
                         restored++;
                 }
             }
@@ -373,23 +409,22 @@ namespace UIMotionComposer
 
         public bool RestoreInitialValueAt(int index)
         {
-            if (capturedInitialValues == null || index < 0 || index >= capturedInitialValues.Count)
+            List<TweenInitialValue> values = InitialPose.Values;
+            if (index < 0 || index >= values.Count)
                 return false;
 
             StopPreview();
             TweenRuntimeRunner.StopAll(this, false);
             _forwardEndpoints.Clear();
-            return capturedInitialValues[index]?.TryApply() == true;
+            return values[index]?.TryApply() == true;
         }
 
         public int RemoveMissingInitialValues()
         {
-            if (capturedInitialValues == null)
-                return 0;
-
-            int removed = capturedInitialValues.RemoveAll(entry => entry == null || entry.Target == null);
-            if (capturedInitialValues.Count == 0)
-                hasCapturedInitialValues = false;
+            List<TweenInitialValue> values = InitialPose.Values;
+            int removed = values.RemoveAll(entry => entry == null || entry.Target == null);
+            if (values.Count == 0)
+                InitialPose.Captured = false;
             _initialValues.Clear();
             return removed;
         }
@@ -566,11 +601,12 @@ namespace UIMotionComposer
             if (_initialValues.TryGetValue(bindingKey, out object value) && value is T typed)
                 return typed;
 
-            if (!_isCapturingInitialValues && hasCapturedInitialValues && capturedInitialValues != null)
+            List<TweenInitialValue> values = InitialPose.Values;
+            if (!_isCapturingInitialValues && InitialPose.Captured)
             {
-                for (int i = 0; i < capturedInitialValues.Count; i++)
+                for (int i = 0; i < values.Count; i++)
                 {
-                    TweenInitialValue entry = capturedInitialValues[i];
+                    TweenInitialValue entry = values[i];
                     if (entry != null && entry.Matches(target, propertyId) && entry.TryGet(out T stored))
                     {
                         _initialValues[bindingKey] = stored;
@@ -648,17 +684,18 @@ namespace UIMotionComposer
             if (target == null || string.IsNullOrEmpty(propertyId))
                 return;
 
-            for (int i = 0; i < capturedInitialValues.Count; i++)
+            List<TweenInitialValue> values = InitialPose.Values;
+            for (int i = 0; i < values.Count; i++)
             {
-                TweenInitialValue existing = capturedInitialValues[i];
+                TweenInitialValue existing = values[i];
                 if (existing != null && existing.Matches(target, propertyId))
                 {
-                    capturedInitialValues[i] = TweenInitialValue.Create(target, propertyId, value);
+                    values[i] = TweenInitialValue.Create(target, propertyId, value);
                     return;
                 }
             }
 
-            capturedInitialValues.Add(TweenInitialValue.Create(target, propertyId, value));
+            values.Add(TweenInitialValue.Create(target, propertyId, value));
         }
 
         private void RebuildDrivenLayouts()

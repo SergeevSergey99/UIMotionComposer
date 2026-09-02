@@ -157,6 +157,24 @@ namespace UIMotionComposer.Editor
             Require(player.RestoreInitialValueAt(savedEntries[0].Index) &&
                     Vector2.Distance(rect.anchoredPosition, new Vector2(12f, 34f)) < 0.001f,
                 "A single Initial Pose entry could not be restored.");
+
+            // This is the same serialized path drawn by TweenInitialValueDrawer. Keeping the test
+            // on SerializedProperty ensures native inspector edits are the source of truth rather
+            // than a parallel editor-only representation.
+            var serializedPlayer = new SerializedObject(player);
+            SerializedProperty editedValue = serializedPlayer.FindProperty("initialPose")
+                ?.FindPropertyRelative("values")
+                ?.GetArrayElementAtIndex(0)
+                ?.FindPropertyRelative("vector2Value");
+            Require(editedValue != null, "Initial Pose is not exposed as a serialized wrapper.");
+            var inspectorAuthoredValue = new Vector2(48f, -26f);
+            editedValue.vector2Value = inspectorAuthoredValue;
+            serializedPlayer.ApplyModifiedPropertiesWithoutUndo();
+
+            rect.anchoredPosition = Vector2.zero;
+            Require(player.RestoreInitialValueAt(0) &&
+                    Vector2.Distance(rect.anchoredPosition, inspectorAuthoredValue) < 0.001f,
+                "An Initial Pose value edited through SerializedProperty was not restored.");
         }
 
         /// <summary>

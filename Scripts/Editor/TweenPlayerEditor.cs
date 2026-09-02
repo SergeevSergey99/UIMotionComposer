@@ -16,9 +16,9 @@ namespace UIMotionComposer.Editor
         private SerializedProperty _animations;
         private SerializedProperty _targetOverrides;
         private SerializedProperty _playOnEnable;
+        private SerializedProperty _initialPose;
         private int _selectedAnimation;
         private bool _showAdvanced;
-        private bool _showInitialPoseEntries = true;
         private float _previewTime;
         private bool _previewPlaying;
         private bool _previewLoop;
@@ -38,6 +38,7 @@ namespace UIMotionComposer.Editor
             _animations = serializedObject.FindProperty("animations");
             _targetOverrides = serializedObject.FindProperty("targetOverrides");
             _playOnEnable = serializedObject.FindProperty("playOnEnable");
+            _initialPose = serializedObject.FindProperty("initialPose");
             EditorApplication.update += UpdatePreview;
             EditorApplication.focusChanged += OnEditorFocusChanged;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
@@ -62,7 +63,7 @@ namespace UIMotionComposer.Editor
         {
             serializedObject.Update();
 
-            DrawInitialValuesSnapshot();
+            EditorGUILayout.PropertyField(_initialPose, new GUIContent("Initial Pose"), true);
             DrawAnimationSelector();
 
             DrawValidationMessages();
@@ -90,193 +91,6 @@ namespace UIMotionComposer.Editor
 
             serializedObject.ApplyModifiedProperties();
             RefreshPreviewIfAuthoringChanged();
-        }
-
-        private void DrawInitialValuesSnapshot()
-        {
-            EditorGUILayout.Space(3f);
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                TweenInitialPoseEntryInfo[] entries = targets.Length == 1
-                    ? Player.GetCapturedInitialPoseEntries()
-                    : Array.Empty<TweenInitialPoseEntryInfo>();
-                int targetCount = entries.Where(entry => entry.Target != null).Select(entry => entry.Target).Distinct().Count();
-                int missingCount = entries.Count(entry => entry.Target == null || !entry.CanRestore);
-
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    EditorGUILayout.LabelField("Initial Pose", EditorStyles.boldLabel);
-                    GUILayout.FlexibleSpace();
-                    if (Player.HasCapturedInitialValues)
-                        GUILayout.Label($"{entries.Length} properties · {targetCount} objects", EditorStyles.miniLabel);
-                }
-
-                if (!Player.HasCapturedInitialValues)
-                {
-                    EditorGUILayout.HelpBox(
-                        "No authored pose has been saved. Initial endpoints currently fall back to values captured at the first playback.",
-                        MessageType.Warning);
-                }
-                else if (missingCount > 0)
-                {
-                    EditorGUILayout.HelpBox(
-                        $"The snapshot contains {missingCount} missing or unsupported entr{(missingCount == 1 ? "y" : "ies")}. Valid properties can still be restored.",
-                        MessageType.Warning);
-                }
-                else
-                {
-                    EditorGUILayout.HelpBox(
-                        "Initial and Offset From Initial endpoints use this serialized pose. Restore does not recapture or change the saved values.",
-                        MessageType.None);
-                }
-
-                using (new EditorGUI.DisabledScope(targets.Length != 1 || Application.isPlaying))
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    if (GUILayout.Button(Player.HasCapturedInitialValues ? "Recapture" : "Capture Pose"))
-                    {
-                        StopPreview();
-                        Undo.RecordObject(Player, "Capture UI Motion initial pose");
-                        Player.CaptureInitialValues();
-                        EditorUtility.SetDirty(Player);
-                        PrefabUtility.RecordPrefabInstancePropertyModifications(Player);
-                        serializedObject.Update();
-                    }
-
-                    using (new EditorGUI.DisabledScope(!Player.HasCapturedInitialValues || entries.Length == 0))
-                    {
-                        if (GUILayout.Button("Restore Pose"))
-                            RestoreInitialPose(entries);
-                        if (GUILayout.Button("Clear", GUILayout.Width(58f)))
-                        {
-                            StopPreview();
-                            Undo.RecordObject(Player, "Clear UI Motion initial pose");
-                            Player.ClearCapturedInitialValues();
-                            EditorUtility.SetDirty(Player);
-                            PrefabUtility.RecordPrefabInstancePropertyModifications(Player);
-                            serializedObject.Update();
-                        }
-                    }
-                }
-
-                if (!Player.HasCapturedInitialValues || entries.Length == 0)
-                    return;
-
-                _showInitialPoseEntries = EditorGUILayout.Foldout(_showInitialPoseEntries,
-                    "Saved properties", true);
-                if (!_showInitialPoseEntries)
-                    return;
-
-                EditorGUI.indentLevel++;
-                for (int i = 0; i < entries.Length; i++)
-                    DrawInitialPoseEntry(entries[i]);
-                EditorGUI.indentLevel--;
-
-                if (missingCount > 0 && GUILayout.Button("Remove missing entries"))
-                {
-                    Undo.RecordObject(Player, "Remove missing UI Motion initial values");
-                    Player.RemoveMissingInitialValues();
-                    EditorUtility.SetDirty(Player);
-                    PrefabUtility.RecordPrefabInstancePropertyModifications(Player);
-                    serializedObject.Update();
-                }
-            }
-        }
-
-        private void DrawInitialPoseEntry(TweenInitialPoseEntryInfo entry)
-        {
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    using (new EditorGUI.DisabledScope(true))
-                        EditorGUILayout.ObjectField(entry.Target, typeof(UnityEngine.Object), true);
-                    using (new EditorGUI.DisabledScope(!entry.CanRestore || Application.isPlaying))
-                    {
-                        if (GUILayout.Button("Restore", GUILayout.Width(58f)))
-                            RestoreInitialPoseEntry(entry);
-                    }
-                }
-
-                EditorGUILayout.LabelField(InitialTargetPath(entry.Target), EditorStyles.miniLabel);
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    EditorGUILayout.LabelField(InitialPropertyName(entry.PropertyId), GUILayout.MinWidth(145f));
-                    GUILayout.FlexibleSpace();
-                    EditorGUILayout.SelectableLabel(entry.Value, EditorStyles.miniLabel,
-                        GUILayout.Height(EditorGUIUtility.singleLineHeight), GUILayout.MinWidth(120f));
-                }
-            }
-        }
-
-        private void RestoreInitialPose(TweenInitialPoseEntryInfo[] entries)
-        {
-            StopPreview();
-            UnityEngine.Object[] undoTargets = entries.Where(entry => entry.Target != null)
-                .Select(entry => entry.Target).Distinct().ToArray();
-            if (undoTargets.Length > 0)
-                Undo.RegisterCompleteObjectUndo(undoTargets, "Restore UI Motion initial pose");
-            Player.RestoreInitialValues();
-            MarkInitialPoseTargetsDirty(undoTargets);
-            SceneView.RepaintAll();
-        }
-
-        private void RestoreInitialPoseEntry(TweenInitialPoseEntryInfo entry)
-        {
-            StopPreview();
-            if (entry.Target != null)
-                Undo.RegisterCompleteObjectUndo(entry.Target, "Restore UI Motion initial value");
-            if (Player.RestoreInitialValueAt(entry.Index) && entry.Target != null)
-                MarkInitialPoseTargetsDirty(new[] { entry.Target });
-            SceneView.RepaintAll();
-        }
-
-        private static void MarkInitialPoseTargetsDirty(IEnumerable<UnityEngine.Object> changedTargets)
-        {
-            foreach (UnityEngine.Object changed in changedTargets)
-            {
-                if (changed == null)
-                    continue;
-                EditorUtility.SetDirty(changed);
-                PrefabUtility.RecordPrefabInstancePropertyModifications(changed);
-            }
-        }
-
-        private string InitialTargetPath(UnityEngine.Object initialTarget)
-        {
-            Transform transform = initialTarget switch
-            {
-                GameObject gameObject => gameObject.transform,
-                Component component => component.transform,
-                _ => null
-            };
-            if (transform == null)
-                return "Missing target";
-            if (transform == Player.transform)
-                return "This TweenPlayer";
-            return transform.IsChildOf(Player.transform)
-                ? AnimationUtility.CalculateTransformPath(transform, Player.transform)
-                : transform.name + " (external)";
-        }
-
-        private static string InitialPropertyName(string propertyId)
-        {
-            return propertyId switch
-            {
-                "Transform.LocalPosition" => "Local Position",
-                "Transform.Position" => "World Position",
-                "Transform.LocalScale" => "Local Scale",
-                "Transform.LocalRotation" => "Local Rotation",
-                "Transform.Rotation" => "World Rotation",
-                "RectTransform.AnchoredPosition" => "Anchored Position",
-                "RectTransform.AnchoredPosition3D" => "Anchored Position 3D",
-                "RectTransform.SizeDelta" => "Size Delta",
-                "RectTransform.Pivot" => "Pivot",
-                "Visual.Alpha" => "Alpha",
-                "Visual.Color" => "Color",
-                "Image.FillAmount" => "Fill Amount",
-                _ => string.IsNullOrEmpty(propertyId) ? "Unknown property" : propertyId
-            };
         }
 
         private void DrawAnimationSelector()
