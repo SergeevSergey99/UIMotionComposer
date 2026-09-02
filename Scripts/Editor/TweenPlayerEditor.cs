@@ -61,10 +61,6 @@ namespace UIMotionComposer.Editor
         {
             serializedObject.Update();
 
-            EditorGUILayout.HelpBox(
-                "Add named animations, then compose each one from independent clips. Clips may overlap; Delay is measured from the animation start.",
-                MessageType.Info);
-
             DrawInitialValuesSnapshot();
             DrawAnimationSelector();
 
@@ -174,7 +170,6 @@ namespace UIMotionComposer.Editor
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 EditorGUILayout.PropertyField(id, new GUIContent("Animation ID"));
-                DrawIdShortcuts(id);
                 EditorGUILayout.PropertyField(asset, new GUIContent("Shared clip asset"));
 
                 EditorGUILayout.Space(2f);
@@ -681,20 +676,6 @@ namespace UIMotionComposer.Editor
             SerializedProperty loopMode = playback.FindPropertyRelative("LoopMode");
             if (loopMode.enumValueIndex != (int)TweenLoopMode.None)
                 EditorGUILayout.PropertyField(playback.FindPropertyRelative("LoopCount"));
-        }
-
-        private static void DrawIdShortcuts(SerializedProperty id)
-        {
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                EditorGUILayout.PrefixLabel("Quick IDs");
-                string[] ids = { TweenIds.Show, TweenIds.Hide, TweenIds.Hover, TweenIds.Click, TweenIds.Unhover };
-                foreach (string value in ids)
-                {
-                    if (GUILayout.Button(value, EditorStyles.miniButton))
-                        id.stringValue = value;
-                }
-            }
         }
 
         private void DrawPreview(string animationId)
