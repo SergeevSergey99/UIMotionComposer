@@ -37,6 +37,8 @@ namespace UIMotionComposer.Editor
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             scene.name = "UIMotionComposerShowcase";
 
+            CreateShowcaseCamera();
+
             GameObject canvasObject = new GameObject("Showcase Canvas", typeof(RectTransform),
                 typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             Canvas canvas = canvasObject.GetComponent<Canvas>();
@@ -145,6 +147,11 @@ namespace UIMotionComposer.Editor
 
             int missingScripts = all.Sum(GameObjectUtility.GetMonoBehavioursWithMissingScriptCount);
             Require(missingScripts == 0, $"Scene contains {missingScripts} missing script reference(s).");
+
+            Camera showcaseCamera = all.SelectMany(item => item.GetComponents<Camera>()).SingleOrDefault();
+            Require(showcaseCamera != null && showcaseCamera.orthographic &&
+                    showcaseCamera.CompareTag("MainCamera") && showcaseCamera.enabled,
+                "Showcase must contain one enabled orthographic Main Camera.");
 
             TweenPlayer[] players = all.SelectMany(item => item.GetComponents<TweenPlayer>()).ToArray();
             TweenUIPanel[] panels = all.SelectMany(item => item.GetComponents<TweenUIPanel>()).ToArray();
@@ -266,6 +273,21 @@ namespace UIMotionComposer.Editor
         {
             if (!condition)
                 throw new System.InvalidOperationException("Showcase validation: " + message);
+        }
+
+        private static void CreateShowcaseCamera()
+        {
+            var cameraObject = new GameObject("Main Camera", typeof(Camera), typeof(AudioListener));
+            cameraObject.tag = "MainCamera";
+            cameraObject.transform.SetPositionAndRotation(new Vector3(0f, 0f, -10f), Quaternion.identity);
+
+            Camera camera = cameraObject.GetComponent<Camera>();
+            camera.orthographic = true;
+            camera.orthographicSize = 5f;
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = Background;
+            camera.nearClipPlane = 0.3f;
+            camera.farClipPlane = 1000f;
         }
 
         private static void CreateSlidePanel(Transform parent, Vector2 position)
