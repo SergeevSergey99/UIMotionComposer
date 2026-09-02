@@ -1,114 +1,64 @@
 # UI Motion Composer
 
-Compose UI motion from independent channels — alpha, position, rotation, scale, size and pivot —
-each with its own window on a shared timeline and its own easing or curve. No Animation clips,
-no Animator component, no keyframes to re-author per panel.
+Compose Unity UI motion from independent clips for position, rotation, scale, size, pivot, alpha,
+color, fill, text and utility actions. Each clip owns its timing, easing, target and repeat settings
+on one visual timeline. The package does not require Animator clips or DOTween.
 
-Every value is expressed relative to the panel's own authored pose, so what you compose is
-portable: one asset drives any panel, wherever it happens to sit on screen.
+Runtime types live in the `UIMotionComposer` namespace. Editor tooling lives in
+`UIMotionComposer.Editor`.
 
-Everything lives in the `UIMotionComposer` namespace (`UIMotionComposer.Inspector`,
-`UIMotionComposer.Tweening` for the support layers). The folder is self-contained: drop it into any
-Unity project and it compiles. Odin Inspector is optional. DOTween is also optional for the legacy
-V1 controllers: they use it when present and fall back to the built-in sequence implementation.
-The clip-based V2 player deliberately uses its own sampler in both edit mode and runtime.
+## Quick start
 
-## V2: clip-based composer
+1. Add **UI Motion Composer/Tween Player** to a UI object.
+2. Press **+ Animation** and enter an ID such as `Show`, `Hide`, `Hover` or `Click`.
+3. Press **+ Add clip** and choose a Transform, Rect Transform, Visual, Effect, Text or Utility clip.
+4. Arrange clips in **Visual Timeline**, or enter exact Delay and Duration values.
+5. Press **Capture Initial Pose** after layout has settled.
+6. Scrub or play the edit-mode preview. **Restore** returns every affected object to its captured
+   pre-preview pose.
 
-`TweenPlayer` is the new authoring workflow. It lives next to the legacy controllers, so existing
-scenes keep working while screens are migrated one at a time.
+`Initial` and `Offset From Initial` use the serialized pose captured by the player. This makes a
+single animation reusable on UI objects with different authored positions and sizes.
 
-1. Add **UI Motion Composer V2/Tween Player** to a UI object.
-2. Press **+ Animation**, give it an ID such as `Show`, `Hide`, `Hover` or `Click`.
-3. Press **+ Add clip** and choose clips from Transform, Rect Transform, Visual, Effects or Utility.
-4. Move and resize the colored blocks in **Visual Timeline**, or enter exact Delay and Duration
-   values in the clip fields. Blocks overlap naturally; snapping defaults to 0.05 seconds and can
-   be disabled temporarily with Alt. Use the Zoom slider or Ctrl+wheel over the ruler/lanes, then
-   pan with the scrollbar or Shift+wheel. Ctrl/Command-click toggles clips, Shift-click selects a
-   range, and dragging empty lane space creates a marquee selection. Selected clips move together;
-   the selection toolbar can align or nudge their starts and move their rows up or down.
-5. Press **Capture Initial Pose** once the object and its layout look right. `Initial` and
-   `Offset From Initial` keep using this serialized authoring snapshot until it is recaptured.
-6. Scrub **Edit-mode preview**, rewind with **|<**, or press **Play preview**. **Loop** repeats the
-   preview while editing and **Restore** returns the object to the pose captured when preview began.
+## Timeline
 
-Edit-mode preview owns an isolated Unity Animation Mode driver. Registered animated properties are
-restored by Unity without adding preview entries to the normal Undo history; non-animatable values
-use TweenPlayer's exact snapshot restoration. If the Animation window, Timeline or another preview
-driver is already active, TweenPlayer waits until that mode is closed rather than taking it over.
+Timeline blocks can overlap freely. Drag a block to move it and drag either edge to resize it.
+Snapping defaults to 0.05 seconds and can be temporarily disabled with Alt.
 
-Add **Tween UI Clickable** beside the player for normal UI controls. It owns the
-`Normal / Hovered / Selected / Pressed / Disabled` state machine and stops the previous animation
-before entering the next state, so an infinitely looping Hover cannot leak after pointer exit.
-Its inspector resolves the states in the visible priority order
-`Disabled > Pressed > Selected > Hovered > Normal`, shows the resulting event transitions and warns
-about animation IDs missing from the attached player. Each row can preview its end pose in edit mode
-and restores the object when preview ends; in Play Mode the same rows force a state for diagnostics.
-**Conventional IDs** fills the usual Hover/Unhover/Click/Disabled mappings in one click.
-`SetInteractable(bool)` updates both its CanvasGroup and an attached Selectable. The lower-level
-**UI Event Trigger** remains available when raw pointer/navigation events should map independently
-without a state machine.
+- Zoom with the slider or Ctrl/Command + mouse wheel.
+- Pan with the scrollbar or Shift + mouse wheel.
+- Ctrl/Command-click toggles clips in the selection.
+- Shift-click selects a range.
+- Drag empty lane space to create a marquee selection.
+- Selected clips move, align, nudge and change rows together.
 
-The clip stack supports move, local/world rotation, scale, anchor position 2D/3D, size, pivot,
-fade, color, image fill, punch, shake, jump, events, GameObject toggles, nested animation playback,
-text reveal and numeric text counters. An inline clip can target the player object or a direct
-object. A shared asset cannot serialize scene references, so its clips use a **Target Slot** such as
-`Content` or `Icon`. Assign the asset to a player and its inspector creates a **Target bindings**
-table for those slots; each player or prefab supplies its own objects. Empty slots target the player
-root, while named but unbound slots are warned about and skipped.
+Repeated clips are striped and infinite repeats are marked with `∞`.
 
-Playback is available from code:
+## State-driven controls
 
-```csharp
-TweenHandle handle = tweenPlayer.Play(TweenIds.Show);
-handle.OnCompleted(() => Debug.Log("Shown"));
-handle.OnCancelled(() => Debug.Log("Interrupted"));
-handle.Stop();
+Add **UI Motion Composer/Tween UI Clickable** beside a player for buttons, tabs and other selectable
+controls. It resolves states in this priority order:
 
-tweenPlayer.Play("Attention");
-tweenPlayer.Stop("Attention", complete: true);
-```
+`Disabled > Pressed > Selected > Hovered > Normal`
 
-Per-animation settings select scaled/unscaled time, override/additive blending, interruption
-behaviour, restart/ping-pong loops and finite or infinite loop counts. Utility clips do not execute
-their side effects in edit-mode preview.
+Only one state animation owns the control at a time. Entering a state stops the previous state
+handle first, including infinite Hover loops. The inspector provides animation dropdowns, missing-ID
+warnings, a transition reference, edit-mode previews and live Play Mode diagnostics.
 
-Every duration clip also has independent **Repeat Mode**, **Repeat Count** and **Repeat Delay**.
-Use clip Repeat when only a ring, glow or child element should cycle; use animation Loop when the
-entire choreography, including its relative timing, should start again. An infinite clip keeps its
-animation handle active until it is stopped, while one-shot sibling clips remain at their completed
-values. The timeline draws repeated ranges with stripes and marks infinite clips with `∞`.
+**Conventional IDs** assigns the usual `Unhover`, `Hover`, `Click`, `Disabled` and `Interactable`
+mappings. `Selected` initially shares `Hover`; assign a separate animation when selection needs a
+different appearance.
 
-**Utility ▸ Play Tween Animation** starts an animation on another targeted `TweenPlayer`. Its
-**Playback Mode** controls ownership: **Fire And Forget** leaves the child independent; **Wait**
-holds the parent timeline at the trigger marker until the child finishes and cancels the child if
-the parent is cancelled; **Link Lifetime** runs both in parallel, completing the child with a
-completed parent and cancelling it with a cancelled parent. Waiting on an infinite child loop is
-intentionally infinite. `GetDuration()` reports the authored parent timeline only; runtime spent in
-**Wait** is dynamic and is not added to that value.
+`SetInteractable(bool)` updates the CanvasGroup and an attached Selectable. Call
+`RefreshInteractableState()` after another system changes either source directly.
 
-For an animation containing an infinitely repeated clip, `GetDuration()` reports one authored cycle
-for timeline/preview scaling, while `IsInfinite(id)` reports the actual lifetime.
+Use the lower-level **UI Motion Composer/UI Event Trigger** when pointer and navigation events should
+launch unrelated animations without state ownership.
 
-V2 playback is intentionally independent of DOTween. `DOTween.KillAll()`, `DOTween.timeScale` and
-the DOTween inspector do not control V2 animations; use `TweenPlayer.Stop`, `StopAll`, `Complete`
-and the returned `TweenHandle`. This keeps runtime sampling identical to the inspector preview.
+## Panel lifecycle
 
-To reuse a clip stack, create **Assets ▸ Create ▸ UI Motion Composer V2 ▸ Tween Animation**, enter
-portable **Target Slot** names only where a clip must animate a child or external object, then assign
-the asset to an animation's **Shared clip asset** field. Bind the resulting slots below its timeline;
-**Find** resolves a child by hierarchy path first and then by GameObject name.
-
-The reusable V2 preset library lives in `ScriptableObjects/V2`. Rebuild it from
-**Tools ▸ UI Motion Composer V2 ▸ Rebuild V2 preset library**. Panel entrances, soft button states,
-three complex clip-repeated hover variants, disabled/re-enabled states and return animations are regular
-`TweenAnimationAsset` files: duplicate and edit them exactly like the old V1 preset assets.
-
-### V2 panel lifecycle
-
-Add **UI Motion Composer V2/Tween UI Panel** beside a player to get a ready-made panel lifecycle.
-`TweenUIPanel` activates before Show, disables input while hiding, optionally deactivates after
-Hide, and exposes both UnityEvents and C# callbacks:
+Add **UI Motion Composer/Tween UI Panel** for a ready-made panel lifecycle. It activates before Show,
+disables input while hiding and can deactivate the GameObject when Hide completes.
 
 ```csharp
 tweenPanel.Show(() => OpenFirstField());
@@ -117,179 +67,92 @@ tweenPanel.InstantShow();
 tweenPanel.InstantHide();
 ```
 
-Its public method names match the legacy panel workflow, which keeps caller migration mechanical.
-The custom inspector selects Show/Hide IDs from the attached player and warns about missing or
-infinitely looping transition animations.
+The inspector selects Show and Hide IDs from the attached player and reports missing or infinitely
+looping transition animations.
 
-### Migrating legacy content
+## Shared animation assets and target slots
 
-The migration commands intentionally keep legacy data and components in place:
+Create a reusable clip stack with **Assets/Create/UI Motion Composer/Tween Animation**. A
+ScriptableObject cannot store references to scene objects, so shared clips use portable **Target
+Slot** names such as `Content`, `Icon` or `Glow`.
 
-* **Tools ▸ UI Motion Composer V2 ▸ Migrate selected legacy preset assets** creates new `_V2`
-  `TweenAnimationAsset` files beside selected legacy presets.
-* **Tools ▸ UI Motion Composer V2 ▸ Migrate selected legacy components** adds a `TweenPlayer`,
-  converts Show/Hide/Hover/Click/Disable/Return animation data inline, imports the controller's
-  serialized `TempValues` as the V2 Initial Pose and adds a `TweenUIPanel` to panel objects.
+Assign the asset to an animation and bind its slots on each TweenPlayer. An empty slot targets the
+player root. A named but unbound slot is reported and skipped instead of silently animating the wrong
+object.
 
-Position migration uses Anchor Position 3D, so old Z values and separate-axis timelines are not
-lost. Inspect and preview the result, then remove the old controller only after its callers have
-been switched to `TweenPlayer`.
+The reusable presets are in `ScriptableObjects/Presets`. Rebuild them with
+**Tools/UI Motion Composer/Rebuild preset library**.
 
-### V2 showcase scene
+## Clip and animation loops
 
-Open `Examples/V2/UIMotionComposerV2Showcase.unity` and enter Play Mode. The scene contains seven
-panels and ten buttons: slide, pop/modal, shake alert, counter/fill HUD, utility composition and two
-shared-preset button galleries. Hover the lower motion buttons to see one child rotate forever while
-other children independently pulse, jump, recolor or move at different periods. The Hover animation
-itself no longer restarts; only the configured clips repeat. Leaving the button stops it and its
-shared Return preset restores every bound child. Every panel uses `TweenUIPanel`; replay buttons use
-the stateful `TweenUIClickable` wrapper.
+Every duration clip has independent **Repeat Mode**, **Repeat Count** and **Repeat Delay**. Use a clip
+repeat when only one child or property should cycle. Use animation playback looping when the entire
+choreography should restart.
 
-The scene can be regenerated from **Tools ▸ UI Motion Composer V2 ▸ Rebuild V2 showcase scene** and
-validated with the adjacent **Validate V2 showcase scene** command.
+An infinite clip keeps its animation handle active until stopped while one-shot sibling clips retain
+their completed values. `GetDuration()` returns one authored timeline cycle and `IsInfinite(id)`
+reports the actual lifetime.
 
-Run **Tools ▸ UI Motion Composer V2 ▸ Run V2 smoke tests** after changing runtime semantics. The
-suite covers preview restore/refresh, serialized Initial values, target slots, nested playback,
-finite Restart/Ping Pong and infinite clip repeats, reversed playback, overlapping-binding
-diagnostics and the clickable state machine (including stopping an infinite Hover when the pointer
-exits).
+## Nested animations
 
-The same checks run as EditMode tests from `Tests/Editor`, so the Test Runner and `-runTests` in
-batch mode report them case by case and keep going after a failure. The assertions live in
-`TweenV2Validation` and both entry points call them, so there is one source of truth: the menu item
-is the quick authoring-time pass, the tests are the reportable one.
+**Utility/Play Tween Animation** starts an animation on another targeted TweenPlayer:
 
-### Playing an animation backwards
+- **Fire And Forget** leaves the child independent.
+- **Wait** pauses the parent marker until the child completes and cancels the child with the parent.
+- **Link Lifetime** runs both in parallel and links completion or cancellation.
 
-Because the sampler is a pure function of time, an animation can run in reverse without authoring a
-second one — it starts at each clip's To value and walks back to its From value. The player keeps
-the concrete endpoints resolved by the latest forward launch, so the default **From ▸ Current**
-still returns to the value captured before that launch rather than resolving Current again at To:
+Waiting on an infinite child is intentionally infinite.
+
+## Runtime API
 
 ```csharp
-tweenPlayer.PlayReverse(TweenIds.Show);   // the Show, un-played
-tweenPlayer.Play("Attention", reversed: true);
+TweenHandle handle = tweenPlayer.Play(TweenIds.Show);
+handle.OnCompleted(() => Debug.Log("Shown"));
+handle.OnCancelled(() => Debug.Log("Interrupted"));
+
+tweenPlayer.PlayReverse(TweenIds.Show);
+tweenPlayer.Stop("Attention");
+tweenPlayer.Complete("Attention");
+tweenPlayer.StopAll();
 ```
 
-`PlayAnimationReverse(string)` is the void wrapper for UnityEvent listeners. Triggers only fire on
-the way back when their **Fire On Reverse** is set. An infinitely repeating clip does not keep a
-reversed play alive: reaching zero ends it, because a reversed play is bounded by definition. With
-**Loop ▸ Restart** a reversed play loops backwards rather than flipping to forward on its second
-pass.
+`PlayAnimation(string)` and `PlayAnimationReverse(string)` are void wrappers for persistent
+UnityEvent listeners.
+
+Playback uses the package sampler in both runtime and preview. `DOTween.KillAll()`,
+`DOTween.timeScale` and the DOTween inspector do not control these animations.
+
+## Preview safety
+
+Edit-mode preview owns an isolated Unity Animation Mode driver. Animated properties are restored by
+Unity; non-animatable values use the player's captured playback snapshot. Utility side effects do
+not execute during preview.
+
+If the Animation window, Timeline or another preview driver is active, the composer reports the
+conflict instead of taking control from it.
+
+## Showcase and validation
+
+Open `Examples/Showcase/UIMotionComposerShowcase.unity`. It contains seven panels, ten stateful
+buttons and complex animations where child elements rotate, scale, jump, recolor and move at
+independent repeat periods.
+
+- **Tools/UI Motion Composer/Rebuild showcase scene** regenerates it.
+- **Tools/UI Motion Composer/Validate showcase scene** checks scripts, panels, buttons and presets.
+- **Tools/UI Motion Composer/Run smoke tests** runs the authoring/runtime invariant suite.
+
+The same checks are exposed as EditMode tests in `Tests/Editor`.
 
 ## Assemblies
 
-The package compiles into its own assemblies rather than `Assembly-CSharp`:
-
-| Assembly | Location |
+| Assembly | Purpose |
 |---|---|
-| `UIMotionComposer.Runtime` | `Scripts/` |
-| `UIMotionComposer.Tools.Editor` | `Scripts/Tools/Editor/` |
-| `UIMotionComposer.Inspector.Editor` | `Scripts/Tools/Inspector/Editor/` |
-| `UIMotionComposer.V2.Editor` | `Scripts/V2/Editor/` |
-| `UIMotionComposer.Tests.Editor` | `Tests/Editor/` |
+| `UIMotionComposer.Runtime` | Runtime player, clips, easing and UI wrappers |
+| `UIMotionComposer.Editor` | Inspectors, timeline, presets, showcase and validation |
+| `UIMotionComposer.Tests.Editor` | EditMode smoke tests |
 
-The runtime assembly is auto-referenced, so game code in `Assembly-CSharp` keeps compiling
-unchanged. Project code that lives in *its own* assembly definition must add a reference to
-`UIMotionComposer.Runtime`.
+The runtime assembly is auto-referenced. Project code in its own assembly definition must add a
+reference to `UIMotionComposer.Runtime`.
 
-Only `Unity.ugui` is referenced. DOTween, Odin and TextMeshPro stay optional exactly as before:
-Odin and DOTween are auto-referenced precompiled assemblies, and TextMeshPro is reached by
-reflection, so none of them is a hard compile-time dependency.
-
-**Custom clip types are not supported from outside the package.** `BaseTweenClip` is public, but
-`Capture`, `Evaluate` and `Restore` take internal state types, so the class cannot be subclassed
-from another assembly. This is deliberate: closing the contract now keeps `TweenClipState` and
-`TweenSampleInfo` free to change, and opening it later is not a breaking change. Add new clip types
-inside `Scripts/V2/Runtime/`.
-
-## How the optional dependencies are wired in V1
-
-| | Plugin installed | Plugin missing |
-|---|---|---|
-| Inspector | `OdinBridge` maps the package attributes onto their Sirenix equivalents; Odin draws everything | `InspectorGUI` draws the same layout with IMGUI (boxes, tabs, foldouts, conditional fields, buttons) |
-| V1 tweening | `DoTweenSequence` / `DoTweenTweener` forward to `DOTween.Sequence()` and `DOVirtual.Float` | `UITweenSequence` runs the same timeline from one coroutine on a hidden runner object |
-
-Detection:
-
-* **Odin** publishes `ODIN_INSPECTOR` itself, so the editor code just keys off that symbol.
-* **DOTween** publishes nothing, so `DefineSymbols` looks for `DG.Tweening.DOTween` on every
-  domain reload and adds or removes `UIMOTION_DOTWEEN` for the active build target. Force a re-check
-  from **Tools ▸ UI Motion Composer ▸ Refresh Plugin Detection**.
-
-Neither symbol needs to be set by hand, and nothing under `Scripts/` outside `Scripts/Tools/`
-references either plugin.
-
-## Presets stay valid across the switch
-
-`AnimationProcessData.Ease` is `UIEase`, whose numeric values mirror `DG.Tweening.Ease` exactly.
-Unity serializes an enum as its int, so presets authored with DOTween installed keep their easing
-after DOTween is removed, and vice versa. Do not renumber `UIEase`.
-
-Every animation is expressed as a single 0..1 float driving an unclamped lerp, so both backends
-produce the same motion — including the overshoot of Back, Elastic and Bounce. The built-in
-evaluator uses the same Penner equations and the same defaults (overshoot 1.70158, period 0.3)
-DOTween does. The one place the two are only approximately equal is the `Flash` easing family.
-
-## Components
-
-* `UIPanelController` — a panel driven by preset assets or by animation data authored inline.
-  Assigning a preset hides the matching inline data and takes precedence over it.
-* `UIMultiPanelController` — a panel that shows and hides other panels alongside its own animation.
-* `UIClickableController` — hover / click / disable animations, same preset-or-inline rule.
-* `UIClickableInteractablePoller` — optional, see *Interactability* below.
-
-## Interactability
-
-Call `SetInteractable(bool)` rather than writing `canvasGroup.interactable` directly. The controller
-cannot notice an external write without polling every frame, and a screenful of buttons each running
-an `Update` is exactly the cost this package should not impose by default.
-
-If some code really must set the flag itself, follow it with `RefreshInteractableState()`, or add a
-`UIClickableInteractablePoller` to that specific button to restore the old polling behaviour.
-
-## Interrupting an animation
-
-Cutting a running animation short and starting another one continues from the pose the panel is
-currently in, instead of first snapping to the new animation's configured initial value. That is
-what keeps fast hover in/out and a Show interrupting a Hide readable.
-
-Set `AnimationData.RestartFromInitialOnInterrupt` if a particular animation really should always
-begin from its initial values, even mid-flight.
-
-## Captured start values
-
-Each controller stores the panel's authored pose once (`TempValues`) so presets can offset from it
-and return to it. That is what makes a preset like "slide in from the bottom" reusable on any panel.
-
-**Has Start Values** says whether that pose has been captured, and the pose itself only appears once
-it has. Clearing the toggle makes the controller capture again on the next play; the **Save Start
-Values** button captures immediately.
-
-The capture forces a layout rebuild first, so panels inside a `LayoutGroup` record the pose the
-layout gives them rather than the one authored in the prefab. If a panel is posed by something the
-rebuild cannot see, capture manually once the panel looks right.
-
-## Layout attributes
-
-`UIMotionComposer.Inspector` provides `BoxGroup`, `TabGroup`, `FoldoutGroup`, `LabelText`, `HideLabel`,
-`InlineProperty`, `ShowIf`, `HideIf`, `MinMaxSlider` and `Button`.
-
-Conditions take a member name (`ShowIf(nameof(IsEnabled))`) or a member plus an expected value
-(`ShowIf(nameof(Mode), AnimationMode.Unified))`), not Odin's `"@expression"` strings — a plain
-member name is the form both inspectors can evaluate. Where a condition needs to combine terms,
-expose a private bool property and point `ShowIf` at that.
-
-`TabGroup.TextColor` still accepts Odin's expression syntax; the fallback inspector understands the
-`"@this.Member.Member"` shape and ignores anything more elaborate.
-
-## Writing a handler
-
-`IAnimationHandler` instances are **shared**: a preset asset hands the same instances to every
-controller referencing it. A handler must stay stateless during playback — read the config, push
-tweens into the sequence, keep nothing. Per-play state belongs in `UIAnimationContext`.
-
-For the rect-driven properties, subclass `TransformAnimationHandler` (Vector3) or
-`Transform2DAnimationHandler` (Vector2) and implement `GetCurrentValue`, `GetStartValue` and
-`ApplyValue`. Override `ApplyInterpolated` only when component-wise lerping is wrong — rotation does,
-because euler angles take the long way round past 180 degrees.
+Only `Unity.ugui` is required. TextMeshPro support is reached through reflection and is not a hard
+assembly dependency.

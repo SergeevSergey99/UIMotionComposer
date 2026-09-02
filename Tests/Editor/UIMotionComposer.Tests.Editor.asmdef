@@ -1,9 +1,9 @@
 {
   "name": "UIMotionComposer.Tests.Editor",
-  "rootNamespace": "UIMotionComposer.V2.Tests",
+  "rootNamespace": "UIMotionComposer.Tests",
   "references": [
     "UIMotionComposer.Runtime",
-    "UIMotionComposer.V2.Editor",
+    "UIMotionComposer.Editor",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"
   ],
