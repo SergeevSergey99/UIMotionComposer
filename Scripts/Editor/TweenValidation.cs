@@ -134,6 +134,11 @@ namespace UIMotionComposer.Editor
             player.CaptureInitialValues();
             Require(player.HasCapturedInitialValues && player.CapturedInitialValueCount == 1,
                 "Serialized Initial snapshot was not captured.");
+            TweenInitialPoseEntryInfo[] savedEntries = player.GetCapturedInitialPoseEntries();
+            Require(savedEntries.Length == 1 && savedEntries[0].Target == rect &&
+                    savedEntries[0].PropertyId == "RectTransform.AnchoredPosition" &&
+                    savedEntries[0].CanRestore,
+                "Initial Pose inspection API did not describe its saved property.");
 
             rect.anchoredPosition = new Vector2(250f, -80f);
             Require(player.Preview("Validation", 1f), "Initial endpoint preview did not start.");
@@ -142,6 +147,16 @@ namespace UIMotionComposer.Editor
             player.StopPreview();
             Require(Vector2.Distance(rect.anchoredPosition, new Vector2(250f, -80f)) < 0.001f,
                 "Preview did not restore the pose that existed before previewing Initial.");
+
+            Require(player.RestoreInitialValues() == 1,
+                "Restore Initial Pose did not report its restored property.");
+            Require(Vector2.Distance(rect.anchoredPosition, new Vector2(12f, 34f)) < 0.001f,
+                "Restore Initial Pose did not apply the serialized authored value.");
+
+            rect.anchoredPosition = new Vector2(-90f, 170f);
+            Require(player.RestoreInitialValueAt(savedEntries[0].Index) &&
+                    Vector2.Distance(rect.anchoredPosition, new Vector2(12f, 34f)) < 0.001f,
+                "A single Initial Pose entry could not be restored.");
         }
 
         /// <summary>

@@ -20,6 +20,11 @@ Runtime types live in the `UIMotionComposer` namespace. Editor tooling lives in
 `Initial` and `Offset From Initial` use the serialized pose captured by the player. This makes a
 single animation reusable on UI objects with different authored positions and sizes.
 
+The **Initial Pose** section lists every saved object, hierarchy path, property and value. **Restore
+Pose** applies the complete saved pose without recapturing it; each property also has its own Restore
+button. Missing targets are reported and can be removed. This is separate from preview Restore,
+which returns objects to the state they had immediately before preview started.
+
 ## Timeline
 
 Timeline blocks can overlap freely. Drag a block to move it and drag either edge to resize it.
@@ -145,7 +150,9 @@ conflict instead of taking control from it.
 
 Open `Examples/Showcase/UIMotionComposerShowcase.unity`. It contains seven panels, ten stateful
 buttons and complex animations where child elements rotate, scale, jump, recolor and move at
-independent repeat periods.
+independent repeat periods. The scene uses a 1920x1080 reference Canvas, a vertical ScrollRect,
+layout-owned card cells and responsive anchored content, so card dimensions can be changed through
+their LayoutElement without manually repositioning their children.
 
 - **Tools/UI Motion Composer/Rebuild showcase scene** regenerates it.
 - **Tools/UI Motion Composer/Validate showcase scene** checks scripts, panels, buttons and presets.

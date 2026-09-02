@@ -43,30 +43,70 @@ namespace UIMotionComposer.Editor
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1800f);
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
             scaler.matchWidthOrHeight = 0.5f;
 
             Image background = CreateImage("Background", canvasObject.transform, Background);
             Stretch(background.rectTransform);
 
-            CreateText("Title", canvasObject.transform, "UI MOTION COMPOSER  •  SHOWCASE",
-                38, TextPrimary, TextAnchor.MiddleCenter, new Vector2(0f, 835f), new Vector2(1500f, 60f), FontStyle.Bold);
-            CreateText("Subtitle", canvasObject.transform,
+            Text title = CreateText("Title", canvasObject.transform, "UI MOTION COMPOSER  •  SHOWCASE",
+                38, TextPrimary, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(1500f, 54f), FontStyle.Bold);
+            SetTopStretch(title.rectTransform, 120f, 120f, 24f, 54f);
+            Text subtitle = CreateText("Subtitle", canvasObject.transform,
                 "Panels, reusable SO presets and stateful buttons. Hover the lower buttons to start infinite child motion.",
-                20, TextSecondary, TextAnchor.MiddleCenter, new Vector2(0f, 783f), new Vector2(1650f, 42f));
+                20, TextSecondary, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(1650f, 38f));
+            SetTopStretch(subtitle.rectTransform, 100f, 100f, 76f, 38f);
 
-            CreateSlidePanel(canvasObject.transform, new Vector2(-590f, 430f));
-            CreatePopPanel(canvasObject.transform, new Vector2(0f, 430f));
-            CreateAlertPanel(canvasObject.transform, new Vector2(590f, 430f));
-            CreateButtonLabPanel(canvasObject.transform, new Vector2(-590f, -240f));
-            CreatePresetGalleryPanel(canvasObject.transform, new Vector2(0f, -240f));
-            CreateUtilityPanel(canvasObject.transform, new Vector2(590f, -240f));
-            CreateHudPanel(canvasObject.transform, new Vector2(0f, -760f));
+            RectTransform scrollRoot = CreateRect("Showcase Scroll", canvasObject.transform, Vector2.zero, Vector2.zero);
+            SetStretch(scrollRoot, 46f, 46f, 28f, 134f);
+            scrollRoot.gameObject.AddComponent<CanvasRenderer>();
+            Image scrollSurface = scrollRoot.gameObject.AddComponent<Image>();
+            scrollSurface.color = new Color(0f, 0f, 0f, 0.001f);
+            scrollSurface.raycastTarget = true;
+            ScrollRect scrollRect = scrollRoot.gameObject.AddComponent<ScrollRect>();
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Elastic;
+            scrollRect.scrollSensitivity = 45f;
+
+            RectTransform viewport = CreateRect("Viewport", scrollRoot, Vector2.zero, Vector2.zero);
+            Stretch(viewport);
+            viewport.gameObject.AddComponent<RectMask2D>();
+            RectTransform content = CreateRect("Responsive Content", viewport, Vector2.zero, Vector2.zero);
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.anchoredPosition = Vector2.zero;
+            content.sizeDelta = Vector2.zero;
+            var contentLayout = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            contentLayout.padding = new RectOffset(12, 12, 12, 24);
+            contentLayout.spacing = 34f;
+            contentLayout.childAlignment = TextAnchor.UpperCenter;
+            contentLayout.childControlWidth = true;
+            contentLayout.childControlHeight = true;
+            contentLayout.childForceExpandWidth = true;
+            contentLayout.childForceExpandHeight = false;
+            var contentFitter = content.gameObject.AddComponent<ContentSizeFitter>();
+            contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            scrollRect.viewport = viewport;
+            scrollRect.content = content;
+
+            RectTransform topRow = CreateGridRow(content, "Panel Row 1");
+            CreateSlidePanel(topRow, Vector2.zero);
+            CreatePopPanel(topRow, Vector2.zero);
+            CreateAlertPanel(topRow, Vector2.zero);
+
+            RectTransform lowerRow = CreateGridRow(content, "Panel Row 2");
+            CreateButtonLabPanel(lowerRow, Vector2.zero);
+            CreatePresetGalleryPanel(lowerRow, Vector2.zero);
+            CreateUtilityPanel(lowerRow, Vector2.zero);
+            CreateHudPanel(content, Vector2.zero);
 
             GameObject eventSystem = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
             eventSystem.transform.SetAsLastSibling();
 
             Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(content);
             foreach (TweenPlayer player in canvasObject.GetComponentsInChildren<TweenPlayer>(true))
             {
                 player.CaptureInitialValues();
@@ -110,6 +150,19 @@ namespace UIMotionComposer.Editor
             TweenUIPanel[] panels = all.SelectMany(item => item.GetComponents<TweenUIPanel>()).ToArray();
             TweenUIClickable[] clickables = all.SelectMany(item => item.GetComponents<TweenUIClickable>()).ToArray();
             Button[] buttons = all.SelectMany(item => item.GetComponents<Button>()).ToArray();
+            CanvasScaler canvasScaler = all.SelectMany(item => item.GetComponents<CanvasScaler>()).SingleOrDefault();
+            Require(canvasScaler != null && canvasScaler.referenceResolution == new Vector2(1920f, 1080f),
+                "Showcase Canvas must use the normal 1920x1080 reference resolution.");
+            ScrollRect showcaseScroll = all.SelectMany(item => item.GetComponents<ScrollRect>())
+                .FirstOrDefault(item => item.name == "Showcase Scroll");
+            Require(showcaseScroll?.content != null && showcaseScroll.vertical && !showcaseScroll.horizontal,
+                "Showcase must use a vertical responsive ScrollRect.");
+            Require(showcaseScroll.content.GetComponent<VerticalLayoutGroup>() != null &&
+                    showcaseScroll.content.GetComponent<ContentSizeFitter>() != null,
+                "Showcase content is missing its responsive vertical layout.");
+            Require(all.Count(item => item.GetComponent<HorizontalLayoutGroup>() != null &&
+                                      item.name.StartsWith("Panel Row")) == 2,
+                "Showcase must contain two responsive panel rows.");
             Require(players.Length == 17, $"Expected 17 TweenPlayers (7 panels + 10 buttons), got {players.Length}.");
             Require(players.All(player => player.HasCapturedInitialValues && player.CapturedInitialValueCount > 0),
                 "Every TweenPlayer must have a serialized Initial Values snapshot.");
@@ -119,6 +172,20 @@ namespace UIMotionComposer.Editor
             Require(buttons.Where(button => button.name == "Replay Animation")
                     .All(button => button.onClick.GetPersistentEventCount() == 1),
                 "Every replay button must have exactly one persistent listener.");
+
+            foreach (string panelName in new[]
+                     {
+                         "01  SLIDE PANEL", "02  MODAL PANEL", "03  ALERT PANEL",
+                         "05  INTERACTION LAB", "06  SHARED PRESETS", "07  UTILITY MIX"
+                     })
+            {
+                GameObject panelObject = all.First(item => item.name == panelName);
+                Require(panelObject.transform.parent != null && panelObject.transform.parent.name.EndsWith(" Cell"),
+                    panelName + " must animate inside a layout-owned cell.");
+                Transform body = panelObject.transform.Find("Content");
+                Require(body != null && body.GetComponent<VerticalLayoutGroup>() != null,
+                    panelName + " content must use VerticalLayoutGroup.");
+            }
 
             CheckPanel(all, "01  SLIDE PANEL", typeof(AnchorPositionTweenClip), typeof(FadeTweenClip), typeof(ColorTweenClip));
             CheckPanel(all, "02  MODAL PANEL", typeof(ScaleTweenClip), typeof(FadeTweenClip), typeof(PunchScaleTweenClip));
@@ -444,6 +511,7 @@ namespace UIMotionComposer.Editor
             button.transition = Selectable.Transition.None;
 
             RectTransform ring = CreateRect("Ring", root.transform, new Vector2(-148f, 0f), new Vector2(42f, 42f));
+            SetLeftCenter(ring, 12f, 42f, 42f);
             Image ringLine = CreateImage("Ring Line", ring, new Color(1f, 1f, 1f, 0.2f));
             SetRect(ringLine.rectTransform, Vector2.zero, new Vector2(32f, 5f));
             Image ringTip = CreateImage("Ring Tip", ring, Color.white);
@@ -454,6 +522,7 @@ namespace UIMotionComposer.Editor
 
             Text labelText = CreateText("Label", root.transform, label, 14, Color.white,
                 TextAnchor.MiddleCenter, new Vector2(24f, 0f), new Vector2(270f, 48f), FontStyle.Bold);
+            SetStretch(labelText.rectTransform, 62f, 12f, 7f, 7f);
 
             TweenPlayer player = root.gameObject.AddComponent<TweenPlayer>();
             player.TargetOverrideDefinitions.Add(new TweenTargetOverride { Key = "Glow", Target = root });
@@ -466,21 +535,28 @@ namespace UIMotionComposer.Editor
 
         private static void CreateHudPanel(Transform parent, Vector2 position)
         {
-            Image root = CreateImage("04 HUD Progress Panel", parent, Hex("182131"));
-            SetRect(root.rectTransform, position, new Vector2(1320f, 142f));
+            RectTransform cell = CreateLayoutSlot("04 HUD Progress Panel Cell", parent, 1320f, 142f);
+            Image root = CreateImage("04 HUD Progress Panel", cell, Hex("182131"));
+            Stretch(root.rectTransform);
             AddShadow(root.gameObject, new Color(0f, 0f, 0f, 0.38f), new Vector2(0f, -10f));
             CanvasGroup canvasGroup = root.gameObject.AddComponent<CanvasGroup>();
 
             Image accent = CreateImage("Accent", root.transform, Green);
-            SetRect(accent.rectTransform, new Vector2(-642f, 0f), new Vector2(8f, 142f));
+            SetAnchorsAndOffsets(accent.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f),
+                Vector2.zero, new Vector2(8f, 0f));
 
-            CreateText("HUD Label", root.transform, "MISSION PROGRESS",
-                16, Green, TextAnchor.MiddleLeft, new Vector2(-505f, 31f), new Vector2(250f, 28f), FontStyle.Bold);
+            Text hudLabel = CreateText("HUD Label", root.transform, "MISSION PROGRESS",
+                16, Green, TextAnchor.MiddleLeft, Vector2.zero, new Vector2(250f, 28f), FontStyle.Bold);
+            SetAnchorsAndOffsets(hudLabel.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.28f, 0.5f),
+                new Vector2(36f, 7f), new Vector2(-12f, 35f));
             Text score = CreateText("Score Counter", root.transform, "0 / 2500 XP",
-                30, TextPrimary, TextAnchor.MiddleLeft, new Vector2(-443f, -13f), new Vector2(380f, 48f), FontStyle.Bold);
+                30, TextPrimary, TextAnchor.MiddleLeft, Vector2.zero, new Vector2(380f, 48f), FontStyle.Bold);
+            SetAnchorsAndOffsets(score.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.3f, 0.5f),
+                new Vector2(36f, -43f), new Vector2(-12f, 5f));
 
             Image track = CreateImage("Progress Track", root.transform, Hex("2C374A"));
-            SetRect(track.rectTransform, new Vector2(210f, 0f), new Vector2(620f, 20f));
+            SetAnchorsAndOffsets(track.rectTransform, new Vector2(0.31f, 0.5f), new Vector2(0.7f, 0.5f),
+                new Vector2(0f, -10f), new Vector2(0f, 10f));
             Image fill = CreateImage("Progress Fill", track.transform, Green);
             Stretch(fill.rectTransform);
             fill.sprite = _uiSprite;
@@ -489,8 +565,10 @@ namespace UIMotionComposer.Editor
             fill.fillOrigin = (int)Image.OriginHorizontal.Left;
             fill.fillAmount = 1f;
 
-            CreateText("HUD Hint", root.transform, "Counter + Image Fill Amount",
-                16, TextSecondary, TextAnchor.MiddleRight, new Vector2(505f, 32f), new Vector2(260f, 28f));
+            Text hudHint = CreateText("HUD Hint", root.transform, "Counter + Image Fill Amount",
+                16, TextSecondary, TextAnchor.MiddleRight, Vector2.zero, new Vector2(260f, 28f));
+            SetAnchorsAndOffsets(hudHint.rectTransform, new Vector2(0.72f, 0.5f), new Vector2(1f, 0.5f),
+                new Vector2(12f, 7f), new Vector2(-205f, 35f));
 
             TweenPlayer player = root.gameObject.AddComponent<TweenPlayer>();
             var show = NewShowAnimation();
@@ -533,7 +611,12 @@ namespace UIMotionComposer.Editor
             player.AnimationDefinitions.Add(NewHideAnimation(canvasGroup));
             player.PlayOnEnableAnimations.Add(TweenIds.Show);
             TweenUIPanel wrapper = AddPanelWrapper(root.gameObject);
-            CreateReplayButton(root.transform, wrapper, new Vector2(545f, -32f), Green, new Vector2(170f, 42f));
+            CreateReplayButton(root.transform, wrapper, Vector2.zero, Green, new Vector2(170f, 42f));
+            RectTransform replay = root.transform.Find("Replay Animation").GetComponent<RectTransform>();
+            replay.anchorMin = replay.anchorMax = new Vector2(1f, 0.5f);
+            replay.pivot = new Vector2(1f, 0.5f);
+            replay.anchoredPosition = new Vector2(-24f, -26f);
+            replay.sizeDelta = new Vector2(170f, 42f);
         }
 
         private static TweenAnimation NewShowAnimation()
@@ -640,30 +723,42 @@ namespace UIMotionComposer.Editor
 
         private static PanelParts CreatePanel(Transform parent, string title, string subtitle, Color accentColor, Vector2 position)
         {
-            Image root = CreateImage(title, parent, Surface);
-            SetRect(root.rectTransform, position, new Vector2(500f, 610f));
+            RectTransform cell = CreateLayoutSlot(title + " Cell", parent, 500f, 610f);
+            Image root = CreateImage(title, cell, Surface);
+            Stretch(root.rectTransform);
             AddShadow(root.gameObject, new Color(0f, 0f, 0f, 0.45f), new Vector2(0f, -14f));
             CanvasGroup canvasGroup = root.gameObject.AddComponent<CanvasGroup>();
 
             Image accent = CreateImage("Top Accent", root.transform, accentColor);
-            SetRect(accent.rectTransform, new Vector2(0f, 301f), new Vector2(500f, 8f));
+            SetTopStretch(accent.rectTransform, 0f, 0f, 0f, 8f);
 
-            CreateText("Panel Title", root.transform, title,
-                18, accentColor, TextAnchor.MiddleLeft, new Vector2(0f, 253f), new Vector2(410f, 34f), FontStyle.Bold);
-            CreateText("Clip Summary", root.transform, subtitle,
-                17, TextSecondary, TextAnchor.MiddleLeft, new Vector2(0f, 218f), new Vector2(410f, 30f));
+            Text titleText = CreateText("Panel Title", root.transform, title,
+                18, accentColor, TextAnchor.MiddleLeft, Vector2.zero, new Vector2(410f, 34f), FontStyle.Bold);
+            SetTopStretch(titleText.rectTransform, 45f, 45f, 30f, 34f);
+            Text summaryText = CreateText("Clip Summary", root.transform, subtitle,
+                17, TextSecondary, TextAnchor.MiddleLeft, Vector2.zero, new Vector2(410f, 30f));
+            SetTopStretch(summaryText.rectTransform, 45f, 45f, 66f, 30f);
 
             Image divider = CreateImage("Divider", root.transform, new Color(1f, 1f, 1f, 0.08f));
-            SetRect(divider.rectTransform, new Vector2(0f, 190f), new Vector2(410f, 2f));
+            SetTopStretch(divider.rectTransform, 45f, 45f, 108f, 2f);
 
-            RectTransform body = CreateRect("Content", root.transform, new Vector2(0f, -31f), new Vector2(420f, 410f));
+            RectTransform body = CreateRect("Content", root.transform, Vector2.zero, Vector2.zero);
+            SetStretch(body, 45f, 45f, 32f, 132f);
+            var layout = body.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.spacing = 12f;
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
             return new PanelParts(root.rectTransform, body, root, canvasGroup);
         }
 
         private static void CreateBadge(Transform parent, string text, Color color)
         {
-            Image badge = CreateImage("Badge", parent, new Color(color.r, color.g, color.b, 0.15f));
-            SetRect(badge.rectTransform, new Vector2(-132f, 158f), new Vector2(125f, 34f));
+            RectTransform row = CreateRect("Badge Row", parent, Vector2.zero, new Vector2(420f, 34f));
+            Image badge = CreateImage("Badge", row, new Color(color.r, color.g, color.b, 0.15f));
+            SetLeftCenter(badge.rectTransform, 0f, 125f, 34f);
             CreateText("Badge Text", badge.transform, text, 14, color, TextAnchor.MiddleCenter,
                 Vector2.zero, new Vector2(125f, 34f), FontStyle.Bold);
         }
@@ -681,6 +776,7 @@ namespace UIMotionComposer.Editor
 
             CreateText("Label", image.transform, "REPLAY ANIMATION", 15, Color.white,
                 TextAnchor.MiddleCenter, Vector2.zero, buttonSize, FontStyle.Bold);
+            Stretch(image.transform.Find("Label").GetComponent<RectTransform>());
             UnityEventTools.AddPersistentListener(button.onClick, new UnityEngine.Events.UnityAction(targetPanel.Show));
 
             TweenPlayer buttonPlayer = image.gameObject.AddComponent<TweenPlayer>();
@@ -733,6 +829,15 @@ namespace UIMotionComposer.Editor
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = position;
             rect.sizeDelta = size;
+
+            if (rect.parent != null && rect.parent.GetComponent<LayoutGroup>() != null)
+            {
+                LayoutElement element = rect.GetComponent<LayoutElement>() ?? rect.gameObject.AddComponent<LayoutElement>();
+                element.preferredWidth = size.x;
+                element.preferredHeight = size.y;
+                element.flexibleWidth = 1f;
+                element.flexibleHeight = 0f;
+            }
         }
 
         private static void Stretch(RectTransform rect)
@@ -741,6 +846,69 @@ namespace UIMotionComposer.Editor
             rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
+        }
+
+        private static void SetStretch(RectTransform rect, float left, float right, float bottom, float top)
+        {
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.offsetMin = new Vector2(left, bottom);
+            rect.offsetMax = new Vector2(-right, -top);
+        }
+
+        private static void SetTopStretch(RectTransform rect, float left, float right, float top, float height)
+        {
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.offsetMin = new Vector2(left, -top - height);
+            rect.offsetMax = new Vector2(-right, -top);
+        }
+
+        private static void SetLeftCenter(RectTransform rect, float left, float width, float height)
+        {
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, 0.5f);
+            rect.pivot = new Vector2(0f, 0.5f);
+            rect.anchoredPosition = new Vector2(left, 0f);
+            rect.sizeDelta = new Vector2(width, height);
+        }
+
+        private static void SetAnchorsAndOffsets(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax,
+            Vector2 offsetMin, Vector2 offsetMax)
+        {
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.offsetMin = offsetMin;
+            rect.offsetMax = offsetMax;
+        }
+
+        private static RectTransform CreateGridRow(Transform parent, string name)
+        {
+            RectTransform row = CreateRect(name, parent, Vector2.zero, new Vector2(1700f, 610f));
+            LayoutElement element = row.GetComponent<LayoutElement>();
+            element.preferredHeight = 610f;
+            element.flexibleHeight = 0f;
+            var layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
+            layout.spacing = 32f;
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = true;
+            return row;
+        }
+
+        private static RectTransform CreateLayoutSlot(string name, Transform parent, float width, float height)
+        {
+            RectTransform slot = CreateRect(name, parent, Vector2.zero, new Vector2(width, height));
+            LayoutElement element = slot.GetComponent<LayoutElement>() ?? slot.gameObject.AddComponent<LayoutElement>();
+            element.preferredWidth = width;
+            element.preferredHeight = height;
+            element.flexibleWidth = 1f;
+            element.flexibleHeight = 0f;
+            return slot;
         }
 
         private static void AddShadow(GameObject gameObject, Color color, Vector2 distance)

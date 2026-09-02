@@ -46,6 +46,22 @@ namespace UIMotionComposer
         public bool HasCapturedInitialValues => hasCapturedInitialValues;
         public int CapturedInitialValueCount => capturedInitialValues?.Count ?? 0;
 
+        public TweenInitialPoseEntryInfo[] GetCapturedInitialPoseEntries()
+        {
+            if (capturedInitialValues == null || capturedInitialValues.Count == 0)
+                return Array.Empty<TweenInitialPoseEntryInfo>();
+
+            var result = new TweenInitialPoseEntryInfo[capturedInitialValues.Count];
+            for (int i = 0; i < capturedInitialValues.Count; i++)
+            {
+                TweenInitialValue entry = capturedInitialValues[i];
+                result[i] = entry != null
+                    ? entry.Describe(i)
+                    : new TweenInitialPoseEntryInfo(i, null, string.Empty, string.Empty, "—", false);
+            }
+            return result;
+        }
+
         /// <summary>
         /// Mutable authoring API used by editor tooling and importers. Runtime code should normally
         /// prefer <see cref="Animations"/> and <see cref="FindAnimation"/>.
@@ -333,6 +349,49 @@ namespace UIMotionComposer
             _forwardEndpoints.Clear();
             capturedInitialValues?.Clear();
             hasCapturedInitialValues = false;
+        }
+
+        [ContextMenu("Restore Captured Initial Pose")]
+        public int RestoreInitialValues()
+        {
+            StopPreview();
+            TweenRuntimeRunner.StopAll(this, false);
+            _forwardEndpoints.Clear();
+            RebuildDrivenLayouts();
+
+            int restored = 0;
+            if (capturedInitialValues != null)
+            {
+                for (int i = 0; i < capturedInitialValues.Count; i++)
+                {
+                    if (capturedInitialValues[i]?.TryApply() == true)
+                        restored++;
+                }
+            }
+            return restored;
+        }
+
+        public bool RestoreInitialValueAt(int index)
+        {
+            if (capturedInitialValues == null || index < 0 || index >= capturedInitialValues.Count)
+                return false;
+
+            StopPreview();
+            TweenRuntimeRunner.StopAll(this, false);
+            _forwardEndpoints.Clear();
+            return capturedInitialValues[index]?.TryApply() == true;
+        }
+
+        public int RemoveMissingInitialValues()
+        {
+            if (capturedInitialValues == null)
+                return 0;
+
+            int removed = capturedInitialValues.RemoveAll(entry => entry == null || entry.Target == null);
+            if (capturedInitialValues.Count == 0)
+                hasCapturedInitialValues = false;
+            _initialValues.Clear();
+            return removed;
         }
 
         /// <summary>Drops non-serialized preview/runtime caches after an editor Undo or import.</summary>

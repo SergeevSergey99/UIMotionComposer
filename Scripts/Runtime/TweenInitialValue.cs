@@ -1,8 +1,31 @@
 using System;
+using System.Globalization;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace UIMotionComposer
 {
+    public readonly struct TweenInitialPoseEntryInfo
+    {
+        public int Index { get; }
+        public UnityEngine.Object Target { get; }
+        public string PropertyId { get; }
+        public string ValueType { get; }
+        public string Value { get; }
+        public bool CanRestore { get; }
+
+        internal TweenInitialPoseEntryInfo(int index, UnityEngine.Object target, string propertyId,
+            string valueType, string value, bool canRestore)
+        {
+            Index = index;
+            Target = target;
+            PropertyId = propertyId;
+            ValueType = valueType;
+            Value = value;
+            CanRestore = canRestore;
+        }
+    }
+
     internal enum TweenInitialValueType
     {
         Float,
@@ -25,6 +48,12 @@ namespace UIMotionComposer
 
         public UnityEngine.Object Target => target;
         public string PropertyId => propertyId;
+
+        public TweenInitialPoseEntryInfo Describe(int index)
+        {
+            return new TweenInitialPoseEntryInfo(index, target, propertyId, valueType.ToString(),
+                FormatValue(), CanApply());
+        }
 
         public bool Matches(UnityEngine.Object candidate, string property)
         {
@@ -83,6 +112,151 @@ namespace UIMotionComposer
             }
 
             return entry;
+        }
+
+        public bool TryApply()
+        {
+            if (!CanApply())
+                return false;
+
+            switch (propertyId)
+            {
+                case "Transform.LocalPosition":
+                    ((Transform)target).localPosition = vector3Value;
+                    break;
+                case "Transform.Position":
+                    ((Transform)target).position = vector3Value;
+                    break;
+                case "Transform.LocalScale":
+                    ((Transform)target).localScale = vector3Value;
+                    break;
+                case "Transform.LocalRotation":
+                    ((Transform)target).localRotation = Quaternion.Euler(vector3Value);
+                    break;
+                case "Transform.Rotation":
+                    ((Transform)target).rotation = Quaternion.Euler(vector3Value);
+                    break;
+                case "RectTransform.AnchoredPosition":
+                    ((RectTransform)target).anchoredPosition = vector2Value;
+                    break;
+                case "RectTransform.AnchoredPosition3D":
+                    ((RectTransform)target).anchoredPosition3D = vector3Value;
+                    break;
+                case "RectTransform.SizeDelta":
+                    ((RectTransform)target).sizeDelta = vector2Value;
+                    break;
+                case "RectTransform.Pivot":
+                    ((RectTransform)target).pivot = vector2Value;
+                    break;
+                case "Visual.Alpha":
+                    ApplyAlpha(floatValue);
+                    break;
+                case "Visual.Color":
+                    ApplyColor(colorValue);
+                    break;
+                case "Image.FillAmount":
+                    ((Image)target).fillAmount = floatValue;
+                    break;
+                default:
+                    return false;
+            }
+
+            return true;
+        }
+
+        private bool CanApply()
+        {
+            if (target == null || string.IsNullOrEmpty(propertyId))
+                return false;
+
+            return propertyId switch
+            {
+                "Transform.LocalPosition" or "Transform.Position" or "Transform.LocalScale" or
+                "Transform.LocalRotation" or "Transform.Rotation" =>
+                    valueType == TweenInitialValueType.Vector3 && target is Transform,
+                "RectTransform.AnchoredPosition" or "RectTransform.SizeDelta" or "RectTransform.Pivot" =>
+                    valueType == TweenInitialValueType.Vector2 && target is RectTransform,
+                "RectTransform.AnchoredPosition3D" =>
+                    valueType == TweenInitialValueType.Vector3 && target is RectTransform,
+                "Visual.Alpha" => valueType == TweenInitialValueType.Float &&
+                                  target is CanvasGroup or Graphic or SpriteRenderer,
+                "Visual.Color" => valueType == TweenInitialValueType.Color &&
+                                  target is Graphic or SpriteRenderer or Renderer,
+                "Image.FillAmount" => valueType == TweenInitialValueType.Float && target is Image,
+                _ => false
+            };
+        }
+
+        private void ApplyAlpha(float value)
+        {
+            switch (target)
+            {
+                case CanvasGroup canvasGroup:
+                    canvasGroup.alpha = value;
+                    break;
+                case Graphic graphic:
+                {
+                    Color color = graphic.color;
+                    color.a = value;
+                    graphic.color = color;
+                    break;
+                }
+                case SpriteRenderer spriteRenderer:
+                {
+                    Color color = spriteRenderer.color;
+                    color.a = value;
+                    spriteRenderer.color = color;
+                    break;
+                }
+            }
+        }
+
+        private void ApplyColor(Color value)
+        {
+            switch (target)
+            {
+                case Graphic graphic:
+                    graphic.color = value;
+                    break;
+                case SpriteRenderer spriteRenderer:
+                    spriteRenderer.color = value;
+                    break;
+                case Renderer renderer:
+                {
+                    Material material = renderer.sharedMaterial;
+                    if (material == null)
+                        break;
+                    int id = material.HasProperty("_Color")
+                        ? Shader.PropertyToID("_Color")
+                        : material.HasProperty("_BaseColor") ? Shader.PropertyToID("_BaseColor") : -1;
+                    if (id < 0)
+                        break;
+                    var block = new MaterialPropertyBlock();
+                    renderer.GetPropertyBlock(block);
+                    block.SetColor(id, value);
+                    renderer.SetPropertyBlock(block);
+                    break;
+                }
+            }
+        }
+
+        private string FormatValue()
+        {
+            return valueType switch
+            {
+                TweenInitialValueType.Float => Number(floatValue),
+                TweenInitialValueType.Vector2 => $"({Number(vector2Value.x)}, {Number(vector2Value.y)})",
+                TweenInitialValueType.Vector3 =>
+                    $"({Number(vector3Value.x)}, {Number(vector3Value.y)}, {Number(vector3Value.z)})",
+                TweenInitialValueType.Color =>
+                    $"RGBA({Number(colorValue.r)}, {Number(colorValue.g)}, {Number(colorValue.b)}, {Number(colorValue.a)})",
+                _ => "—"
+            };
+        }
+
+        private static string Number(float value)
+        {
+            return value.ToString("0.###", CultureInfo.InvariantCulture);
         }
     }
 }
