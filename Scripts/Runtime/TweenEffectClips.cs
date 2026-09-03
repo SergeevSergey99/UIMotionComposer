@@ -30,12 +30,11 @@ namespace UIMotionComposer
             };
         }
 
-        internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
+        internal override void EvaluateProgress(TweenClipState state, float progress, bool additive)
         {
-            if (state?.Target is not Transform transform || !ShouldApply(sample))
-                return;
-
-            float progress = Progress(sample.Time);
+            var transform = (Transform)state.Target;
+            // Oscillation phase is bounded even when an ease or custom curve overshoots.
+            progress = Mathf.Clamp01(progress);
             float damping = Mathf.Pow(1f - progress, Mathf.Lerp(1f, 3f, 1f - Elasticity));
             float wave = Mathf.Sin(progress * Mathf.PI * Mathf.Max(1, Vibrato));
             Vector3 offset = Vector3.Scale(Strength, Vector3.one * (wave * damping));
@@ -81,12 +80,10 @@ namespace UIMotionComposer
             };
         }
 
-        internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
+        internal override void EvaluateProgress(TweenClipState state, float progress, bool additive)
         {
-            if (state?.Target is not RectTransform rectTransform || !ShouldApply(sample))
-                return;
-
-            float progress = Progress(sample.Time);
+            var rectTransform = (RectTransform)state.Target;
+            progress = Mathf.Clamp01(progress);
             float damping = Mathf.Pow(1f - progress, Mathf.Lerp(1f, 3f, 1f - Elasticity));
             float wave = Mathf.Sin(progress * Mathf.PI * Mathf.Max(1, Vibrato));
             Vector2 offset = Strength * (wave * damping);
@@ -142,12 +139,9 @@ namespace UIMotionComposer
             };
         }
 
-        internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
+        internal override void EvaluateProgress(TweenClipState state, float progress, bool additive)
         {
-            if (state?.Target == null || !ShouldApply(sample))
-                return;
-
-            float progress = Progress(sample.Time);
+            progress = Mathf.Clamp01(progress);
             float fade = FadeOut ? 1f - progress : 1f;
             Vector3 noise = new Vector3(
                 Noise(progress, Seed),

@@ -91,6 +91,12 @@ search. **Auto Bind All** uses slot names and only falls back to a type match wh
 unambiguous. Each row reports Missing, Wrong type or Resolved and provides Find, Ping and Clear
 actions.
 
+For **Component**, an empty **Under child** searches the player and its descendants (including
+inactive objects), without using the slot name. A specified path or name restricts the search to
+that subtree. If it is missing or contains no matching component, the slot stays unresolved;
+the search never falls back to another branch. **Child Path/Name** still uses the slot name when
+its query is empty.
+
 Enable **Local** on a slot to override its player-wide binding only for the selected animation. This
 lets several animations reuse the same shared asset with different children without duplicating the
 asset or changing the default binding used by the rest of the player.
@@ -103,6 +109,11 @@ The reusable presets are in `ScriptableObjects/Presets`. Rebuild them with
 Every duration clip has independent **Repeat Mode**, **Repeat Count** and **Repeat Delay**. Use a clip
 repeat when only one child or property should cycle. Use animation playback looping when the entire
 choreography should restart.
+
+Delay, repeats and easing/custom curves are evaluated by `DurationTweenClip` for every continuous
+clip, including Punch and Shake. Effects clamp their oscillation phase to 0–1 when a curve
+overshoots; property tweens retain their existing overshoot behavior. To keep the previous
+uneased Punch/Shake timing, select **Linear** with **Use Custom Curve** disabled.
 
 An infinite clip keeps its animation handle active until stopped while one-shot sibling clips retain
 their completed values. `GetDuration()` returns one authored timeline cycle and `IsInfinite(id)`

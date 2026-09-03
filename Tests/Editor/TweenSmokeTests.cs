@@ -73,6 +73,31 @@ namespace UIMotionComposer.Tests
         }
 
         [Test]
+        public void ComponentBinding_RespectsExplicitScopeAndEmptyQuery()
+        {
+            TweenValidation.ValidateComponentBindingScopes();
+        }
+
+        [Test]
+        public void PunchScale_UsesSharedDurationContract()
+        {
+            TweenValidation.ValidateEffectDurationContract(new PunchScaleTweenClip { Vibrato = 1 });
+        }
+
+        [Test]
+        public void PunchAnchorPosition_UsesSharedDurationContract()
+        {
+            TweenValidation.ValidateEffectDurationContract(new PunchAnchorPositionTweenClip { Vibrato = 1 });
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void Shake_UsesSharedDurationContract(bool anchored)
+        {
+            TweenValidation.ValidateEffectDurationContract(new ShakeTweenClip { UseAnchoredPosition = anchored });
+        }
+
+        [Test]
         public void AuthoringFingerprint_ObservesManagedReferenceEdits()
         {
             TweenValidation.ValidateAuthoringFingerprint(_player);

@@ -497,7 +497,7 @@ namespace UIMotionComposer
             {
                 TweenTargetBindingMode.ChildPath => FindChildByPath(query)?.gameObject,
                 TweenTargetBindingMode.ChildName => FindChildByName(query)?.gameObject,
-                TweenTargetBindingMode.Component => FindBoundComponent(query, entry.ComponentType),
+                TweenTargetBindingMode.Component => FindBoundComponent(entry.Query?.Trim(), entry.ComponentType),
                 _ => null
             };
 
@@ -545,9 +545,11 @@ namespace UIMotionComposer
             Transform searchRoot = transform;
             if (!string.IsNullOrWhiteSpace(query))
             {
-                Transform restricted = FindChildByPath(query) ?? FindChildByName(query);
-                if (restricted != null)
-                    searchRoot = restricted;
+                searchRoot = FindChildByPath(query);
+                if (searchRoot == null)
+                    searchRoot = FindChildByName(query);
+                if (searchRoot == null)
+                    return null;
             }
 
             return searchRoot.GetComponentInChildren(componentType, true);

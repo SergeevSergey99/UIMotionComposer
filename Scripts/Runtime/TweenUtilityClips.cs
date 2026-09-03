@@ -175,15 +175,15 @@ namespace UIMotionComposer
             };
         }
 
-        internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
+        internal override void EvaluateProgress(TweenClipState state, float progress, bool additive)
         {
-            if (state?.Target == null || state.Metadata is not RevealMetadata metadata || !ShouldApply(sample))
+            if (state.Metadata is not RevealMetadata metadata)
                 return;
 
             int fullLength = metadata.OriginalText?.Length ?? 0;
             int to = ToCharacters < 0 ? fullLength : Mathf.Clamp(ToCharacters, 0, fullLength);
             int visible = Mathf.RoundToInt(Mathf.LerpUnclamped(
-                Mathf.Clamp(FromCharacters, 0, fullLength), to, EaseProgress(Progress(sample.Time))));
+                Mathf.Clamp(FromCharacters, 0, fullLength), to, progress));
 
             if (metadata.Text != null)
                 metadata.Text.text = metadata.OriginalText.Substring(0, Mathf.Clamp(visible, 0, fullLength));
@@ -289,12 +289,12 @@ namespace UIMotionComposer
             };
         }
 
-        internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
+        internal override void EvaluateProgress(TweenClipState state, float progress, bool additive)
         {
-            if (state?.Target == null || state.Metadata is not CounterMetadata metadata || !ShouldApply(sample))
+            if (state.Metadata is not CounterMetadata metadata)
                 return;
 
-            float value = Mathf.LerpUnclamped(FromValue, ToValue, EaseProgress(Progress(sample.Time)));
+            float value = Mathf.LerpUnclamped(FromValue, ToValue, progress);
             object formattedValue = WholeNumbers ? Mathf.RoundToInt(value) : value;
             string format = string.IsNullOrEmpty(Format) ? "{0}" : Format;
             string text;

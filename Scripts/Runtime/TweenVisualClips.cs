@@ -107,14 +107,11 @@ namespace UIMotionComposer
             };
         }
 
-        internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
+        internal override void EvaluateProgress(TweenClipState state, float progress, bool additive)
         {
-            if (state?.Target == null || !ShouldApply(sample))
-                return;
-
             Color from = (Color)state.From;
             Color to = (Color)state.To;
-            Color value = Color.LerpUnclamped(from, to, EaseProgress(Progress(sample.Time)));
+            Color value = Color.LerpUnclamped(from, to, progress);
             Write(state.Target, value, state.Metadata as RendererMetadata);
         }
 

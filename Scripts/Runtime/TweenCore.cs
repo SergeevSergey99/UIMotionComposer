@@ -80,7 +80,7 @@ namespace UIMotionComposer
         [Tooltip("Find the first descendant with this name, including inactive objects.")]
         ChildName,
 
-        [Tooltip("Find a component of the selected type below this TweenPlayer. Query may optionally restrict the search to a child path or name.")]
+        [Tooltip("Find the first component on this TweenPlayer or its descendants, including inactive objects. A non-empty Query restricts the search to that child path or name; a missing child leaves the slot unresolved.")]
         Component
     }
 
@@ -134,7 +134,7 @@ namespace UIMotionComposer
         public TweenTargetBindingMode Mode = TweenTargetBindingMode.Direct;
         public UnityEngine.Object Target;
 
-        [Tooltip("Child path or name used by automatic binding modes. When empty, the slot key is used.")]
+        [Tooltip("Child path or name. When empty, Child Path/Name uses the slot key; Component searches this TweenPlayer and its descendants.")]
         public string Query;
 
         [Tooltip("Assembly-qualified Component type used by Component mode.")]
@@ -364,7 +364,19 @@ namespace UIMotionComposer
             }
         }
 
-        protected float Progress(float time)
+        internal sealed override void Evaluate(TweenPlayer player, TweenClipState state,
+            in TweenSampleInfo sample)
+        {
+            if (state?.Target == null || !ShouldApply(sample))
+                return;
+
+            EvaluateProgress(state, EaseProgress(Progress(sample.Time)), sample.Additive);
+        }
+
+        // All duration clips receive the same delayed, repeated and eased progress.
+        internal abstract void EvaluateProgress(TweenClipState state, float progress, bool additive);
+
+        private float Progress(float time)
         {
             float delay = Mathf.Max(0f, Delay);
             if (time < delay)
@@ -398,7 +410,7 @@ namespace UIMotionComposer
                 : progress;
         }
 
-        internal bool ShouldApply(in TweenSampleInfo sample)
+        private bool ShouldApply(in TweenSampleInfo sample)
         {
             float delay = Mathf.Max(0f, Delay);
             if (ApplyFromBeforeDelay || sample.Time >= delay)
@@ -410,7 +422,7 @@ namespace UIMotionComposer
             return !sample.Forward && sample.PreviousTime >= delay;
         }
 
-        protected float EaseProgress(float progress)
+        private float EaseProgress(float progress)
         {
             return UseCustomCurve && CustomCurve != null
                 ? CustomCurve.Evaluate(progress)
@@ -526,18 +538,14 @@ namespace UIMotionComposer
             };
         }
 
-        internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
+        internal override void EvaluateProgress(TweenClipState state, float progress, bool additive)
         {
-            if (state?.Target == null || !ShouldApply(sample))
-                return;
-
             Vector3 from = (Vector3)state.From;
             Vector3 to = (Vector3)state.To;
-            float eased = EaseProgress(Progress(sample.Time));
-            Vector3 value = Interpolate(from, to, eased);
+            Vector3 value = Interpolate(from, to, progress);
             Vector3 current = Read(state.Target);
 
-            if (sample.Additive)
+            if (additive)
             {
                 Vector3 delta = value - from;
                 Vector3 previousDelta = state.Extra is Vector3 stored ? stored : Vector3.zero;
@@ -616,17 +624,14 @@ namespace UIMotionComposer
             };
         }
 
-        internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
+        internal override void EvaluateProgress(TweenClipState state, float progress, bool additive)
         {
-            if (state?.Target == null || !ShouldApply(sample))
-                return;
-
             Vector2 from = (Vector2)state.From;
             Vector2 to = (Vector2)state.To;
-            Vector2 value = Interpolate(from, to, EaseProgress(Progress(sample.Time)));
+            Vector2 value = Interpolate(from, to, progress);
             Vector2 current = Read(state.Target);
 
-            if (sample.Additive)
+            if (additive)
             {
                 Vector2 delta = value - from;
                 Vector2 previousDelta = state.Extra is Vector2 stored ? stored : Vector2.zero;
@@ -696,15 +701,12 @@ namespace UIMotionComposer
             };
         }
 
-        internal override void Evaluate(TweenPlayer player, TweenClipState state, in TweenSampleInfo sample)
+        internal override void EvaluateProgress(TweenClipState state, float progress, bool additive)
         {
-            if (state?.Target == null || !ShouldApply(sample))
-                return;
-
             float from = (float)state.From;
             float to = (float)state.To;
-            float value = Mathf.LerpUnclamped(from, to, EaseProgress(Progress(sample.Time)));
-            if (sample.Additive)
+            float value = Mathf.LerpUnclamped(from, to, progress);
+            if (additive)
             {
                 float delta = value - from;
                 float previousDelta = state.Extra is float stored ? stored : 0f;

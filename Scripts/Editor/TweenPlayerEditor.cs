@@ -305,7 +305,7 @@ namespace UIMotionComposer.Editor
                     break;
                 case TweenTargetBindingMode.Component:
                     EditorGUILayout.PropertyField(entry.FindPropertyRelative("Query"),
-                        new GUIContent("Under child", "Optional path or name restricting the component search."));
+                        new GUIContent("Under child", "Optional path or name. Empty searches the player and its descendants. A missing child leaves the slot unresolved."));
                     DrawComponentType(entry.FindPropertyRelative("ComponentType"), slot);
                     break;
             }

@@ -25,10 +25,15 @@ namespace UIMotionComposer.Editor
 
                 TweenAnimation animation = ValidatePreviewSampling(player, rect, canvasGroup);
                 ValidateTargetSlot(player, animation, canvasGroup);
+                ValidateComponentBindingScopes();
                 ValidateInitialSnapshot(player, rect, animation);
                 ValidateAuthoringFingerprint(player);
                 ValidateNestedPlaybackModes(player, canvasGroup);
                 ValidateClipRepeatSemantics();
+                ValidateEffectDurationContract(new PunchScaleTweenClip { Vibrato = 1 });
+                ValidateEffectDurationContract(new PunchAnchorPositionTweenClip { Vibrato = 1 });
+                ValidateEffectDurationContract(new ShakeTweenClip());
+                ValidateEffectDurationContract(new ShakeTweenClip { UseAnchoredPosition = false });
                 ValidateReversePlayback();
                 ValidateLayeredPlayback();
                 ValidateLayeredColor();
@@ -605,6 +610,93 @@ namespace UIMotionComposer.Editor
             }
         }
 
+        internal static void ValidateEffectDurationContract(DurationTweenClip clip)
+        {
+            GameObject fixture = CreateFixture(out RectTransform rect, out _, out TweenPlayer player);
+            try
+            {
+                clip.Duration = 1f;
+                clip.Ease = UIEase.Linear;
+                var animation = new TweenAnimation { Id = "Effect Timing", Clips = { clip } };
+                player.AnimationDefinitions.Add(animation);
+
+                Vector3 Read() => clip is PunchScaleTweenClip ? rect.localScale : rect.localPosition;
+                Vector3 Sample(float time)
+                {
+                    player.PreparePreview(animation.Id);
+                    Require(player.SamplePreparedPreviewTime(time), "Effect preview did not sample.");
+                    Vector3 value = Read();
+                    player.StopPreview();
+                    return value;
+                }
+                void Expect(Vector3 actual, Vector3 expected, string message)
+                {
+                    Require(Vector3.Distance(actual, expected) < 0.001f,
+                        $"{clip.GetType().Name}: {message} Actual {actual}, expected {expected}.");
+                }
+
+                Vector3 original = Read();
+                Vector3 quarter = Sample(0.25f);
+                Vector3 start = Sample(0f);
+                Vector3 end = Sample(1f);
+                Require(Vector3.Distance(quarter, original) > 0.001f,
+                    "Effect timing fixture must produce a visible offset.");
+                Expect(Read(), original, "Preview did not restore the original value.");
+
+                clip.Ease = UIEase.InQuad;
+                Expect(Sample(0.5f), quarter, "Ease was not applied.");
+                clip.UseCustomCurve = true;
+                clip.CustomCurve = AnimationCurve.Linear(0f, 0.25f, 1f, 0.25f);
+                Expect(Sample(0.6f), quarter, "Custom curve did not replace Ease.");
+                clip.CustomCurve = null;
+                Expect(Sample(0.5f), quarter, "Null custom curve did not fall back to Ease.");
+
+                clip.CustomCurve = AnimationCurve.Linear(0f, 1.5f, 1f, 1.5f);
+                Expect(Sample(0.5f), end, "Overshooting curve produced an invalid effect phase.");
+                clip.CustomCurve = AnimationCurve.Linear(0f, -0.5f, 1f, -0.5f);
+                Expect(Sample(0.5f), start, "Negative curve produced an invalid effect phase.");
+                clip.UseCustomCurve = false;
+                clip.Ease = UIEase.Linear;
+                clip.Delay = 0.5f;
+                clip.ApplyFromBeforeDelay = false;
+                Expect(Sample(0.25f), original, "Effect wrote before its delay.");
+                clip.ApplyFromBeforeDelay = true;
+                Expect(Sample(0.25f), start, "Effect did not apply its start before delay.");
+
+                clip.RepeatMode = TweenLoopMode.Restart;
+                clip.RepeatCount = 2;
+                clip.RepeatDelay = 0.25f;
+                Expect(Sample(1.625f), end, "Repeat delay did not hold the endpoint.");
+                Expect(Sample(2f), quarter, "Restart did not sample the next pass.");
+                clip.RepeatMode = TweenLoopMode.PingPong;
+                Expect(Sample(2.5f), quarter, "PingPong did not reverse progress.");
+                Expect(Sample(clip.EndTime), start, "PingPong did not finish at its start.");
+
+                // Repeated and backwards seeks must not accumulate effect offsets.
+                player.PreparePreview(animation.Id);
+                player.SamplePreparedPreviewTime(2.5f);
+                player.SamplePreparedPreviewTime(1.625f);
+                player.SamplePreparedPreviewTime(2.5f);
+                player.SamplePreparedPreviewTime(2.5f);
+                Expect(Read(), quarter, "Repeated preview sampling accumulated offsets.");
+                player.StopPreview();
+                Expect(Read(), original, "Seeked preview did not restore the original value.");
+
+                clip.RepeatMode = TweenLoopMode.Restart;
+                clip.RepeatCount = -1;
+                clip.Ease = UIEase.InQuad;
+                object playback = CreatePlaybackForValidation(player, animation);
+                TickPlaybackForValidation(playback, 3.5f); // Delay + two spans + half a pass.
+                Expect(Read(), quarter, "Runtime and preview disagree on eased infinite repeats.");
+                Require(ReadIsActive(playback), "Infinite effect completed after one cycle.");
+                StopPlaybackForValidation(playback, false);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(fixture);
+            }
+        }
+
         internal static void ValidateClickableStateMachine()
         {
             var target = new GameObject("Clickable Validation", typeof(RectTransform),
@@ -775,6 +867,10 @@ namespace UIMotionComposer.Editor
 
         internal static void ValidateClipHierarchy(TweenAnimationAsset asset)
         {
+            MethodInfo evaluate = typeof(DurationTweenClip).GetMethod("Evaluate",
+                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+            Require(evaluate != null && evaluate.IsFinal,
+                "Duration clips can bypass the shared timing/easing entry point.");
             asset.Clips.Clear();
             var eventClip = new EventTweenClip { Delay = 0.7f };
             asset.Clips.Add(eventClip);
@@ -931,6 +1027,73 @@ namespace UIMotionComposer.Editor
             animation.TargetOverrides.Clear();
             player.TargetOverrideDefinitions.Clear();
             player.InvalidateTargetBindings();
+        }
+
+        internal static void ValidateComponentBindingScopes()
+        {
+            GameObject fixture = CreateFixture(out _, out CanvasGroup rootGroup, out TweenPlayer player);
+            try
+            {
+                var scope = new GameObject("Scope");
+                scope.transform.SetParent(player.transform, false);
+                var content = new GameObject("Content", typeof(CanvasGroup));
+                content.transform.SetParent(scope.transform, false);
+                CanvasGroup contentGroup = content.GetComponent<CanvasGroup>();
+                content.SetActive(false);
+                var empty = new GameObject("Empty");
+                empty.transform.SetParent(player.transform, false);
+                var binding = new TweenTargetOverride
+                {
+                    Key = "Content", Mode = TweenTargetBindingMode.Component,
+                    ComponentType = typeof(CanvasGroup).AssemblyQualifiedName
+                };
+                player.TargetOverrideDefinitions.Add(binding);
+                UnityEngine.Object Resolve(string query)
+                {
+                    binding.Query = query;
+                    player.InvalidateTargetBindings();
+                    return player.ResolveTargetBinding("Content");
+                }
+
+                Require(Resolve(null) == rootGroup && Resolve("  ") == rootGroup,
+                    "Empty Component query unexpectedly used the slot name instead of the player root.");
+                Require(Resolve("Scope") == contentGroup && Resolve("Scope/Content") == contentGroup &&
+                        Resolve(" Content ") == contentGroup,
+                    "Scoped Component binding failed for an inactive descendant, path or name.");
+                Require(Resolve("Missing") == null && Resolve("Scope/Missing") == null,
+                    "Missing Component scope silently fell back to another object.");
+                Require(Resolve("Empty") == null,
+                    "An empty subtree resolved a component from another branch.");
+
+                var animation = new TweenAnimation
+                {
+                    Id = "Scoped Binding",
+                    Clips = { new FadeTweenClip { TargetKey = "Content" } },
+                    TargetOverrides = { new TweenTargetOverride
+                    {
+                        Key = "Content", Mode = TweenTargetBindingMode.Component,
+                        Query = "Missing", ComponentType = binding.ComponentType
+                    } }
+                };
+                player.AnimationDefinitions.Add(animation);
+                Resolve(null); // Valid player binding must not replace an unresolved local override.
+                Require(player.ResolveTargetBinding("Content", animation) == null &&
+                        player.PreparePreview(animation.Id).Length == 0,
+                    "Unresolved local Component binding fell back to the player binding/root.");
+                player.SamplePreparedPreview(0.5f);
+                Require(Mathf.Approximately(rootGroup.alpha, 0.8f),
+                    "Unresolved Component binding animated the root.");
+                player.StopPreview();
+
+                binding.ComponentType = typeof(string).AssemblyQualifiedName;
+                Require(Resolve(null) == null, "Non-Component binding type was accepted.");
+                binding.ComponentType = "Missing.Type, Missing.Assembly";
+                Require(Resolve(null) == null, "Unknown Component binding type was accepted.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(fixture);
+            }
         }
 
         /// <summary>
