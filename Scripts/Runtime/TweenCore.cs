@@ -19,12 +19,6 @@ namespace UIMotionComposer
         Additive
     }
 
-    public enum TweenKillBehavior
-    {
-        Cancel,
-        Complete
-    }
-
     public enum TweenNestedPlaybackMode
     {
         [Tooltip("Start the child animation and let it continue independently.")]
@@ -96,8 +90,8 @@ namespace UIMotionComposer
         [Tooltip("Use Time.unscaledDeltaTime. Useful for pause menus.")]
         public bool UnscaledTime = true;
 
+        [Tooltip("Override writes the sampled value. Later-started animations write after earlier ones.")]
         public TweenBlendMode BlendMode = TweenBlendMode.Override;
-        public TweenKillBehavior KillBehavior = TweenKillBehavior.Cancel;
 
         [Tooltip("When disabled, Play ignores a request for the same animation while it is active.")]
         public bool AllowSelfOverride = true;

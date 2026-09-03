@@ -166,7 +166,6 @@ namespace UIMotionComposer.Editor
                 }
 
                 DrawPreview(id.stringValue);
-                DrawBindingConflicts(id.stringValue);
 
                 SerializedProperty started = animation.FindPropertyRelative("OnStarted");
                 SerializedProperty completed = animation.FindPropertyRelative("OnCompleted");
@@ -632,7 +631,6 @@ namespace UIMotionComposer.Editor
         {
             EditorGUILayout.PropertyField(playback.FindPropertyRelative("UnscaledTime"));
             EditorGUILayout.PropertyField(playback.FindPropertyRelative("BlendMode"));
-            EditorGUILayout.PropertyField(playback.FindPropertyRelative("KillBehavior"));
             EditorGUILayout.PropertyField(playback.FindPropertyRelative("AllowSelfOverride"));
             EditorGUILayout.PropertyField(playback.FindPropertyRelative("LoopMode"));
 
@@ -712,20 +710,6 @@ namespace UIMotionComposer.Editor
 
             if (!_previewLoop && !infinite && _previewTime >= 1f)
                 _previewPlaying = false;
-        }
-
-        private void DrawBindingConflicts(string animationId)
-        {
-            if (targets.Length != 1 || string.IsNullOrWhiteSpace(animationId))
-                return;
-
-            string[] conflicts = Player.GetBindingConflicts(animationId);
-            if (conflicts.Length == 0)
-                return;
-
-            EditorGUILayout.HelpBox(
-                "Overlapping clips write the same property; the lower clip in the list wins while their blocks overlap:\n• " +
-                string.Join("\n• ", conflicts), MessageType.Warning);
         }
 
         private void StopPreview()

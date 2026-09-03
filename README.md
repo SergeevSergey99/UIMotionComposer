@@ -108,6 +108,23 @@ An infinite clip keeps its animation handle active until stopped while one-shot 
 their completed values. `GetDuration()` returns one authored timeline cycle and `IsInfinite(id)`
 reports the actual lifetime.
 
+## Layering
+
+Animations sample in launch order, oldest first. Each clip writes only its selected components;
+the last write wins. Within an animation, clips sample in list order, also during preview.
+
+For example, A animates XY, B animates Z and C animates Y: the result is A.X, C.Y, B.Z. All three
+keep running. Once C finishes or is stopped, A's Y becomes visible on the next update if A is still
+active. Color followed by Fade works the same way: Fade changes alpha and preserves the current RGB.
+
+Overlapping writes never cancel clips or animations. Handles finish with their timelines or explicit
+Stop/Complete calls; infinite animations need an explicit stop. Paused animations keep contributing
+their frozen sample. Animations launched by a callback start at time zero after existing writers in
+that update. State wrappers such as TweenUIClickable still explicitly stop their previous state.
+
+The old Kill Behavior setting and binding-conflict warnings have been removed. Existing serialized
+clips and target bindings are unchanged; legacy KillBehavior YAML fields are simply ignored.
+
 ## Nested animations
 
 **Utility/Play Tween Animation** starts an animation on another targeted TweenPlayer:

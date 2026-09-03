@@ -237,45 +237,6 @@ namespace UIMotionComposer
         }
 
         /// <summary>
-        /// Returns authored clips that write the same resolved property during overlapping timeline
-        /// ranges. Evaluation remains deterministic (the later clip wins), but surfacing it in the
-        /// inspector prevents accidental double-authoring.
-        /// </summary>
-        public string[] GetBindingConflicts(string animationId)
-        {
-            TweenAnimation animation = FindAnimation(animationId);
-            TweenPlayback playback = TweenPlayback.Create(this, animation, true);
-            if (playback == null)
-                return Array.Empty<string>();
-
-            var conflicts = new HashSet<string>(StringComparer.Ordinal);
-            IReadOnlyList<TweenClipState> states = playback.States;
-            for (int i = 0; i < states.Count; i++)
-            {
-                TweenClipState first = states[i];
-                if (first?.Clip == null || string.IsNullOrEmpty(first.BindingKey))
-                    continue;
-
-                for (int j = i + 1; j < states.Count; j++)
-                {
-                    TweenClipState second = states[j];
-                    if (second?.Clip == null || first.BindingKey != second.BindingKey ||
-                        !AuthoredRangesOverlap(first.Clip, second.Clip))
-                        continue;
-
-                    string property = first.BindingKey.Substring(first.BindingKey.IndexOf(':') + 1);
-                    string targetName = first.Target != null ? first.Target.name : name;
-                    conflicts.Add($"{targetName} · {property}: {ClipName(first.Clip)} ↔ {ClipName(second.Clip)}");
-                }
-            }
-
-            var result = new string[conflicts.Count];
-            conflicts.CopyTo(result);
-            Array.Sort(result, StringComparer.Ordinal);
-            return result;
-        }
-
-        /// <summary>
         /// Samples an animation without side effects. The first call captures a snapshot; call
         /// <see cref="StopPreview"/> to restore it. Intended for custom inspectors and tooling.
         /// </summary>
@@ -770,28 +731,6 @@ namespace UIMotionComposer
         {
             animation?.OnCancelled?.Invoke();
         }
-
-        private static bool AuthoredRangesOverlap(BaseTweenClip first, BaseTweenClip second)
-        {
-            float firstStart = Mathf.Max(0f, first.Delay);
-            float secondStart = Mathf.Max(0f, second.Delay);
-            float firstEnd = Mathf.Max(firstStart, first.EndTime);
-            float secondEnd = Mathf.Max(secondStart, second.EndTime);
-
-            bool firstMarker = Mathf.Approximately(firstStart, firstEnd);
-            bool secondMarker = Mathf.Approximately(secondStart, secondEnd);
-            if (firstMarker || secondMarker)
-                return Mathf.Abs(firstStart - secondStart) < 0.0001f;
-
-            return Mathf.Max(firstStart, secondStart) < Mathf.Min(firstEnd, secondEnd) - 0.0001f;
-        }
-
-        private static string ClipName(BaseTweenClip clip)
-        {
-            return string.IsNullOrWhiteSpace(clip.Label)
-                ? clip.GetType().Name.Replace("TweenClip", string.Empty)
-                : clip.Label;
-        }
     }
 
     public sealed class TweenHandle
@@ -889,7 +828,7 @@ namespace UIMotionComposer
         private int _pass;
         private int _direction = 1;
         private readonly int _initialDirection = 1;
-        private readonly bool _hasInfiniteClip;
+        private bool _hasInfiniteClip;
 
         public TweenPlayer Player { get; }
         public TweenAnimation Animation { get; }
@@ -921,7 +860,6 @@ namespace UIMotionComposer
             Animation = animation;
             IsPreview = preview;
             Duration = CalculateDuration(animation.EffectiveClips);
-            _hasInfiniteClip = HasInfiniteClip(animation.EffectiveClips);
             _initialDirection = reversed ? -1 : 1;
             _direction = _initialDirection;
             _time = reversed ? Duration : 0f;
@@ -953,7 +891,10 @@ namespace UIMotionComposer
 
                     TweenClipState state = clip.Capture(player);
                     if (state != null)
+                    {
                         playback._states.Add(state);
+                        playback._hasInfiniteClip |= clip.IsInfinite;
+                    }
                 }
             }
             finally
@@ -1002,28 +943,17 @@ namespace UIMotionComposer
             return duration;
         }
 
-        public bool Overlaps(TweenPlayback other)
-        {
-            for (int i = 0; i < _states.Count; i++)
-            {
-                string ownKey = _states[i].BindingKey;
-                if (string.IsNullOrEmpty(ownKey))
-                    continue;
-
-                for (int j = 0; j < other._states.Count; j++)
-                {
-                    if (ownKey == other._states[j].BindingKey)
-                        return true;
-                }
-            }
-
-            return false;
-        }
-
         public void Tick(float scaledDelta, float unscaledDelta)
         {
-            if (!IsActive || IsPaused || IsWaitingForNestedAnimation())
+            if (!IsActive)
                 return;
+
+            if (IsPaused || IsWaitingForNestedAnimation())
+            {
+                // Frozen time still contributes a value on top of earlier layers.
+                Sample(_time, _time, false);
+                return;
+            }
 
             TweenPlaybackSettings settings = Animation.Playback ?? new TweenPlaybackSettings();
             float delta = settings.UnscaledTime ? unscaledDelta : scaledDelta;
@@ -1157,7 +1087,7 @@ namespace UIMotionComposer
             var sample = new TweenSampleInfo(previousTime, time, _pass, _direction > 0,
                 allowSideEffects && !IsPreview, settings.BlendMode == TweenBlendMode.Additive);
 
-            for (int i = 0; i < _states.Count; i++)
+            for (int i = 0; i < _states.Count && IsActive; i++)
                 _states[i].Clip.Evaluate(Player, _states[i], sample);
         }
 
@@ -1176,20 +1106,6 @@ namespace UIMotionComposer
             {
                 Handle.NotifyCompleted();
             }
-        }
-
-        private static bool HasInfiniteClip(IReadOnlyList<BaseTweenClip> clips)
-        {
-            if (clips == null)
-                return false;
-
-            for (int i = 0; i < clips.Count; i++)
-            {
-                if (clips[i] is { Enabled: true, IsInfinite: true })
-                    return true;
-            }
-
-            return false;
         }
 
         private float ClampToNextWaitMarker(float proposedTime)
@@ -1242,6 +1158,7 @@ namespace UIMotionComposer
     {
         private static TweenRuntimeRunner _instance;
         private readonly List<TweenPlayback> _playbacks = new List<TweenPlayback>();
+        private bool _isUpdating;
 
         private static TweenRuntimeRunner Instance
         {
@@ -1276,16 +1193,11 @@ namespace UIMotionComposer
                                      active.Animation == incoming.Animation;
                 if (sameAnimation && !settings.AllowSelfOverride)
                     return false;
-
-                if (settings.BlendMode != TweenBlendMode.Override || !incoming.Overlaps(active))
-                    continue;
-
-                TweenKillBehavior behavior = active.Animation.Playback?.KillBehavior ?? TweenKillBehavior.Cancel;
-                active.Stop(behavior == TweenKillBehavior.Complete);
             }
 
             runner._playbacks.Add(incoming);
-            incoming.Begin();
+            if (!runner._isUpdating)
+                incoming.Begin();
             return true;
         }
 
@@ -1332,18 +1244,34 @@ namespace UIMotionComposer
 
         private void Update()
         {
-            for (int i = _playbacks.Count - 1; i >= 0; i--)
+            Tick(Time.deltaTime, Time.unscaledDeltaTime);
+        }
+
+        internal void Tick(float scaledDelta, float unscaledDelta)
+        {
+            _isUpdating = true;
+            try
             {
-                TweenPlayback playback = _playbacks[i];
-                if (playback.Player == null)
+                // Last writer wins. Do not reorder live playbacks when removing finished ones.
+                int count = _playbacks.Count;
+                for (int i = 0; i < count; i++)
                 {
-                    _playbacks.RemoveAt(i);
-                    continue;
+                    TweenPlayback playback = _playbacks[i];
+                    if (playback.Player != null)
+                        playback.Tick(scaledDelta, unscaledDelta);
                 }
 
-                playback.Tick(Time.deltaTime, Time.unscaledDeltaTime);
-                if (!playback.IsActive)
-                    _playbacks.RemoveAt(i);
+                // Callback/nested launches start after existing writers, without consuming this frame's delta.
+                for (int i = count; i < _playbacks.Count; i++)
+                {
+                    if (_playbacks[i].Player != null)
+                        _playbacks[i].Begin();
+                }
+            }
+            finally
+            {
+                _isUpdating = false;
+                _playbacks.RemoveAll(playback => playback.Player == null || !playback.IsActive);
             }
         }
 

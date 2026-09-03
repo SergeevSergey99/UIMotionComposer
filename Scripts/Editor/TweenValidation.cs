@@ -30,7 +30,10 @@ namespace UIMotionComposer.Editor
                 ValidateNestedPlaybackModes(player, canvasGroup);
                 ValidateClipRepeatSemantics();
                 ValidateReversePlayback();
-                ValidateBindingConflictDiagnostics();
+                ValidateLayeredPlayback();
+                ValidateLayeredColor();
+                ValidateRunnerCallbackOrder();
+                ValidateRunnerNestedWait();
                 ValidateClickableStateMachine();
                 ValidateAnimationModeRestore(rect);
 
@@ -319,45 +322,212 @@ namespace UIMotionComposer.Editor
             parentPlayer.AnimationDefinitions.Clear();
         }
 
-        internal static void ValidateBindingConflictDiagnostics()
+        internal static void ValidateLayeredPlayback()
         {
-            var target = new GameObject("Binding Conflict Validation", typeof(RectTransform),
-                typeof(TweenPlayer));
+            var target = new GameObject("Layered Playback", typeof(RectTransform), typeof(TweenPlayer));
+            var other = new GameObject("Other Player", typeof(TweenPlayer));
             try
             {
                 TweenPlayer player = target.GetComponent<TweenPlayer>();
-                var first = new ScaleTweenClip
-                {
-                    Label = "First scale",
-                    Delay = 0f,
-                    Duration = 0.8f,
-                    ToMode = TweenEndpointMode.Custom,
-                    ToValue = Vector3.one * 1.1f
-                };
-                var second = new ScaleTweenClip
-                {
-                    Label = "Second scale",
-                    Delay = 0.4f,
-                    Duration = 0.8f,
-                    ToMode = TweenEndpointMode.Custom,
-                    ToValue = Vector3.one * 0.9f
-                };
-                player.AnimationDefinitions.Add(new TweenAnimation
-                {
-                    Id = "Conflict",
-                    Clips = { first, second }
-                });
+                TweenPlayer otherPlayer = other.GetComponent<TweenPlayer>();
+                Transform transform = target.transform;
+                TweenAnimation xy = MoveAnimation("XY", TweenVectorComponents.All2D, new Vector3(8, 16, 99), 4f);
+                TweenAnimation z = MoveAnimation("Z", TweenVectorComponents.Z, new Vector3(99, 99, 24), 4f);
+                ((MoveTweenClip)z.Clips[0]).Target = transform;
+                ((DurationTweenClip)z.Clips[0]).RepeatMode = TweenLoopMode.Restart;
+                ((DurationTweenClip)z.Clips[0]).RepeatCount = -1;
+                z.Playback.AllowSelfOverride = false;
+                TweenAnimation y = MoveAnimation("Y", TweenVectorComponents.Y, new Vector3(99, 100, 99), 1f);
+                ((MoveTweenClip)y.Clips[0]).Target = transform;
+                ((MoveTweenClip)y.Clips[0]).FromMode = TweenEndpointMode.Current;
+                int markers = 0;
+                var marker = new EventTweenClip { Delay = 2f };
+                marker.Event.AddListener(() => markers++);
+                xy.Clips.Add(marker);
+                player.AnimationDefinitions.Add(xy);
+                otherPlayer.AnimationDefinitions.Add(z);
+                otherPlayer.AnimationDefinitions.Add(y);
 
-                Require(player.GetBindingConflicts("Conflict").Length == 1,
-                    "Overlapping clips on the same property were not reported.");
-                second.Delay = 0.8f;
-                Require(player.GetBindingConflicts("Conflict").Length == 0,
-                    "Touching, non-overlapping clips were reported as a conflict.");
+                TweenHandle xyHandle = player.Play(xy.Id);
+                TweenHandle zHandle = otherPlayer.Play(z.Id);
+                Require(!otherPlayer.Play(z.Id).IsValid, "Same-animation launch guard was lost.");
+                TickRunnerForValidation(0.5f);
+                Require(Vector3.Distance(transform.localPosition, new Vector3(1, 2, 3)) < 0.001f,
+                    "XY and Z did not compose across players.");
+
+                TweenHandle yHandle = otherPlayer.Play(y.Id);
+                TickRunnerForValidation(0.5f);
+                Require(Vector3.Distance(transform.localPosition, new Vector3(2, 51, 6)) < 0.001f &&
+                        xyHandle.IsActive && zHandle.IsActive,
+                    "A newer Y must overwrite only Y, leaving the older XY and Z playbacks alive.");
+                yHandle.Pause();
+                TickRunnerForValidation(0.25f);
+                Require(Mathf.Abs(transform.localPosition.y - 51f) < 0.001f,
+                    "Pausing a layer must freeze its sample, not expose an earlier writer.");
+                yHandle.Resume();
+                TickRunnerForValidation(0.5f);
+                Require(yHandle.WasCompleted && Mathf.Abs(transform.localPosition.y - 100f) < 0.001f,
+                    "The finishing layer did not write its last sample.");
+                TickRunnerForValidation(0.25f);
+                Require(Vector3.Distance(transform.localPosition, new Vector3(4, 8, 12)) < 0.001f,
+                    "The older Y did not become visible again after the newer animation finished.");
+                TickRunnerForValidation(2f);
+                Require(xyHandle.WasCompleted && markers == 1 && zHandle.IsActive,
+                    "Layering changed another animation's events or infinite lifetime.");
+                otherPlayer.StopAll();
+                Require(zHandle.WasCancelled, "Explicit StopAll did not stop an infinite layer.");
+
+                transform.localPosition = Vector3.zero;
+                var preview = new TweenAnimation { Id = "Layered Preview" };
+                preview.Clips.AddRange(xy.Clips);
+                preview.Clips.AddRange(z.Clips);
+                preview.Clips.AddRange(y.Clips);
+                player.AnimationDefinitions.Add(preview);
+                player.PreparePreview(preview.Id);
+                player.SamplePreparedPreviewTime(2f);
+                Require(Vector3.Distance(transform.localPosition, new Vector3(4, 100, 12)) < 0.001f,
+                    "Preview did not compose clips in authored order.");
+                player.SamplePreparedPreviewTime(0.5f);
+                Require(Vector3.Distance(transform.localPosition, new Vector3(1, 50, 3)) < 0.001f,
+                    "Backwards preview scrubbing changed component ownership.");
+                player.StopPreview();
+                Require(transform.localPosition == Vector3.zero && markers == 1,
+                    "Layered preview changed the authored pose or fired a marker.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(other);
+                UnityEngine.Object.DestroyImmediate(target);
+            }
+        }
+
+        internal static void ValidateLayeredColor()
+        {
+            var target = new GameObject("Layered Color", typeof(RectTransform),
+                typeof(UnityEngine.UI.Image), typeof(TweenPlayer));
+            try
+            {
+                TweenPlayer player = target.GetComponent<TweenPlayer>();
+                var graphic = target.GetComponent<UnityEngine.UI.Image>();
+                var color = new TweenAnimation { Id = "Color" };
+                color.Clips.Add(new ColorTweenClip
+                {
+                    FromMode = TweenEndpointMode.Custom, FromValue = Color.black,
+                    ToMode = TweenEndpointMode.Custom, ToValue = new Color(1f, 0.6f, 0.2f, 0f),
+                    Duration = 2f, Ease = UIEase.Linear
+                });
+                var fade = new TweenAnimation { Id = "Fade" };
+                fade.Clips.Add(new FadeTweenClip
+                {
+                    FromMode = TweenEndpointMode.Custom, FromValue = 1f,
+                    ToMode = TweenEndpointMode.Custom, ToValue = 0.4f,
+                    Duration = 1f, Ease = UIEase.Linear
+                });
+                player.AnimationDefinitions.Add(color);
+                player.AnimationDefinitions.Add(fade);
+                TweenHandle colorHandle = player.Play(color.Id);
+                TweenHandle fadeHandle = player.Play(fade.Id);
+                TickRunnerForValidation(0.5f);
+                Require(Vector4.Distance(graphic.color, new Color(0.25f, 0.15f, 0.05f, 0.7f)) < 0.001f &&
+                        colorHandle.IsActive,
+                    $"Fade must replace alpha without stopping RGB. Actual: {graphic.color}; " +
+                    $"Color active={colorHandle.IsActive}, t={colorHandle.NormalizedTime}; " +
+                    $"Fade active={fadeHandle.IsActive}, t={fadeHandle.NormalizedTime}.");
+                TickRunnerForValidation(0.5f);
+                TickRunnerForValidation(0.5f);
+                Require(Mathf.Abs(graphic.color.a - 0.25f) < 0.001f,
+                    "The earlier Color alpha did not resume after Fade completed.");
+
+                player.StopAll();
+                player.Play(fade.Id);
+                player.Play(color.Id);
+                TickRunnerForValidation(0.5f);
+                Require(Mathf.Abs(graphic.color.a - 0.75f) < 0.001f,
+                    "Launch order, not clip type, must determine which alpha write wins.");
             }
             finally
             {
                 UnityEngine.Object.DestroyImmediate(target);
             }
+        }
+
+        internal static void ValidateRunnerCallbackOrder()
+        {
+            var target = new GameObject("Callback Order", typeof(RectTransform), typeof(TweenPlayer));
+            try
+            {
+                TweenPlayer player = target.GetComponent<TweenPlayer>();
+                TweenAnimation first = MoveAnimation("Ends", TweenVectorComponents.X, Vector3.one * 4f, 0.25f);
+                TweenAnimation survivor = MoveAnimation("Survives", TweenVectorComponents.X, Vector3.one * 20f, 2f);
+                TweenAnimation child = MoveAnimation("Callback Child", TweenVectorComponents.X, Vector3.one * 100f, 1f);
+                ((MoveTweenClip)child.Clips[0]).FromValue = Vector3.one * 50f;
+                player.AnimationDefinitions.Add(first);
+                player.AnimationDefinitions.Add(survivor);
+                player.AnimationDefinitions.Add(child);
+                TweenHandle childHandle = null;
+                first.OnCompleted.AddListener(() => childHandle = player.Play(child.Id));
+                player.Play(first.Id);
+                TweenHandle survivorHandle = player.Play(survivor.Id);
+                TickRunnerForValidation(0.25f);
+                Require(childHandle != null && childHandle.NormalizedTime == 0f &&
+                        Mathf.Abs(target.transform.localPosition.x - 50f) < 0.001f &&
+                        Mathf.Abs(survivorHandle.NormalizedTime - 0.125f) < 0.001f,
+                    "Callback launches must start last at time zero without skipping existing playbacks.");
+                TickRunnerForValidation(0.25f);
+                Require(Mathf.Abs(target.transform.localPosition.x - 62.5f) < 0.001f,
+                    "Removing a completed playback changed the remaining layer order.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(target);
+            }
+        }
+
+        internal static void ValidateRunnerNestedWait()
+        {
+            var target = new GameObject("Nested Runner", typeof(RectTransform), typeof(TweenPlayer));
+            try
+            {
+                TweenPlayer player = target.GetComponent<TweenPlayer>();
+                TweenAnimation parent = MoveAnimation("Parent", TweenVectorComponents.X, Vector3.one * 4f, 1f);
+                TweenAnimation child = MoveAnimation("Child", TweenVectorComponents.Y, Vector3.one * 2f, 0.5f);
+                parent.Clips.Add(new PlayTweenAnimationClip
+                {
+                    AnimationId = child.Id, Delay = 0.25f, Mode = TweenNestedPlaybackMode.Wait
+                });
+                player.AnimationDefinitions.Add(parent);
+                player.AnimationDefinitions.Add(child);
+                TweenHandle parentHandle = player.Play(parent.Id);
+                TickRunnerForValidation(0.5f);
+                Require(parentHandle.NormalizedTime == 0.25f && player.IsPlaying(child.Id) &&
+                        target.transform.localPosition.y == 0f,
+                    "A nested child must begin at its marker without consuming the parent's frame delta.");
+                TickRunnerForValidation(0.5f);
+                Require(parentHandle.NormalizedTime == 0.25f && !player.IsPlaying(child.Id),
+                    "Wait did not hold the parent while the ordered runner advanced the child.");
+                TickRunnerForValidation(0.25f);
+                Require(parentHandle.NormalizedTime == 0.5f &&
+                        Vector3.Distance(target.transform.localPosition, new Vector3(2, 2, 0)) < 0.001f,
+                    "The parent did not resume after its nested child completed.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(target);
+            }
+        }
+
+        private static TweenAnimation MoveAnimation(string id, TweenVectorComponents components, Vector3 to,
+            float duration)
+        {
+            return new TweenAnimation
+            {
+                Id = id,
+                Clips = { new MoveTweenClip
+                {
+                    Components = components, FromMode = TweenEndpointMode.Custom, FromValue = Vector3.zero,
+                    ToMode = TweenEndpointMode.Custom, ToValue = to, Duration = duration, Ease = UIEase.Linear
+                } }
+            };
         }
 
         internal static void ValidateClipRepeatSemantics()
@@ -580,6 +750,15 @@ namespace UIMotionComposer.Editor
         {
             playback.GetType().GetMethod("Tick", BindingFlags.Public | BindingFlags.Instance)
                 ?.Invoke(playback, new object[] { delta, delta });
+        }
+
+        private static void TickRunnerForValidation(float delta)
+        {
+            Type type = typeof(TweenPlayer).Assembly.GetType("UIMotionComposer.TweenRuntimeRunner");
+            object runner = type?.GetField("_instance", BindingFlags.NonPublic | BindingFlags.Static)?.GetValue(null);
+            MethodInfo tick = type?.GetMethod("Tick", BindingFlags.NonPublic | BindingFlags.Instance);
+            Require(runner != null && tick != null, "Could not tick the runtime runner for validation.");
+            tick.Invoke(runner, new object[] { delta, delta });
         }
 
         private static void StopPlaybackForValidation(object playback, bool complete)

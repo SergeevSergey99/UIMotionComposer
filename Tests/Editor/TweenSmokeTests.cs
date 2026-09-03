@@ -97,9 +97,27 @@ namespace UIMotionComposer.Tests
         }
 
         [Test]
-        public void BindingConflicts_ReportOverlappingWritesToOneProperty()
+        public void Layering_XYAndZContinueWhileNewYOverwritesOnlyY()
         {
-            TweenValidation.ValidateBindingConflictDiagnostics();
+            TweenValidation.ValidateLayeredPlayback();
+        }
+
+        [Test]
+        public void Layering_ColorAndFadeFollowLaunchOrder()
+        {
+            TweenValidation.ValidateLayeredColor();
+        }
+
+        [Test]
+        public void Runner_CallbackLaunchStartsAfterExistingWritersAtTimeZero()
+        {
+            TweenValidation.ValidateRunnerCallbackOrder();
+        }
+
+        [Test]
+        public void Runner_NestedWaitHoldsParentAndAdvancesChild()
+        {
+            TweenValidation.ValidateRunnerNestedWait();
         }
 
         [Test]

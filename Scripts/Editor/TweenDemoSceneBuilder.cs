@@ -650,7 +650,6 @@ namespace UIMotionComposer.Editor
                 {
                     UnscaledTime = true,
                     BlendMode = TweenBlendMode.Override,
-                    KillBehavior = TweenKillBehavior.Cancel,
                     AllowSelfOverride = true,
                     LoopMode = TweenLoopMode.None,
                     LoopCount = 1
@@ -673,7 +672,6 @@ namespace UIMotionComposer.Editor
                 {
                     UnscaledTime = true,
                     BlendMode = TweenBlendMode.Override,
-                    KillBehavior = TweenKillBehavior.Cancel,
                     AllowSelfOverride = true,
                     LoopMode = TweenLoopMode.None,
                     LoopCount = 1
@@ -704,7 +702,6 @@ namespace UIMotionComposer.Editor
                 {
                     UnscaledTime = true,
                     BlendMode = TweenBlendMode.Override,
-                    KillBehavior = TweenKillBehavior.Cancel,
                     AllowSelfOverride = true,
                     LoopMode = TweenLoopMode.None,
                     LoopCount = 1

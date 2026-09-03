@@ -22,9 +22,11 @@ namespace UIMotionComposer
             if (FadeTarget == TweenFadeTarget.SpriteRenderer)
                 return ResolveComponent<SpriteRenderer>(source);
 
-            return (UnityEngine.Object)ResolveComponent<CanvasGroup>(source) ??
-                   (UnityEngine.Object)ResolveComponent<Graphic>(source) ??
-                   ResolveComponent<SpriteRenderer>(source);
+            // Missing Unity components can be fake-null objects in the editor; do not use ??.
+            UnityEngine.Object target = ResolveComponent<CanvasGroup>(source);
+            if (target == null) target = ResolveComponent<Graphic>(source);
+            if (target == null) target = ResolveComponent<SpriteRenderer>(source);
+            return target;
         }
 
         protected override float Read(UnityEngine.Object target)
@@ -140,9 +142,10 @@ namespace UIMotionComposer
             if (ColorTarget == TweenColorTarget.Renderer)
                 return ResolveComponent<Renderer>(source);
 
-            return (UnityEngine.Object)ResolveComponent<Graphic>(source) ??
-                   ResolveComponent<SpriteRenderer>(source) ??
-                   ResolveComponent<Renderer>(source);
+            UnityEngine.Object target = ResolveComponent<Graphic>(source);
+            if (target == null) target = ResolveComponent<SpriteRenderer>(source);
+            if (target == null) target = ResolveComponent<Renderer>(source);
+            return target;
         }
 
         private static Color Read(UnityEngine.Object target, out RendererMetadata metadata)
