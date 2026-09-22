@@ -20,6 +20,10 @@ Runtime types live in the `UIMotionComposer` namespace. Editor tooling lives in
 `Initial` and `Offset From Initial` use the serialized pose captured by the player. This makes a
 single animation reusable on UI objects with different authored positions and sizes.
 
+In play mode the captured pose is also the starting state: the player applies it once, on `Awake` or on
+the first `Play`, whichever comes first. Objects can be moved anywhere in the editor to keep them from
+overlapping and still start where the pose says.
+
 The **Initial Pose** section lists every saved object, hierarchy path, property and value. **Restore
 Pose** applies the complete saved pose without recapturing it; each property also has its own Restore
 button. Missing targets are reported and can be removed. This is separate from preview Restore,

@@ -35,6 +35,7 @@ namespace UIMotionComposer
         private readonly Dictionary<TweenTargetOverride, UnityEngine.Object> _targetBindingCache =
             new Dictionary<TweenTargetOverride, UnityEngine.Object>();
         private bool _isCapturingInitialValues;
+        private bool _initialPoseApplied;
         private TweenAnimation _targetResolutionAnimation;
         private TweenPlayback _preview;
 
@@ -107,6 +108,25 @@ namespace UIMotionComposer
         public List<TweenTargetOverride> TargetOverrideDefinitions => targetOverrides;
         public List<string> PlayOnEnableAnimations => playOnEnable;
 
+        /// <summary>
+        /// The captured pose is the authored runtime state: it is applied once, on Awake or on the
+        /// first Play, whichever comes first. The object can therefore sit anywhere in the editor.
+        /// </summary>
+        private void Awake()
+        {
+            ApplyInitialPoseOnce();
+        }
+
+        private void ApplyInitialPoseOnce()
+        {
+            if (_initialPoseApplied || !Application.isPlaying)
+                return;
+
+            _initialPoseApplied = true;
+            if (InitialPose.IsCaptured)
+                RestoreInitialValues();
+        }
+
         private void OnEnable()
         {
             _targetBindingCache.Clear();
@@ -140,6 +160,7 @@ namespace UIMotionComposer
 
         public TweenHandle Play(string animationId, bool reversed)
         {
+            ApplyInitialPoseOnce();
             TweenAnimation animation = FindAnimation(animationId);
             if (animation == null)
             {
