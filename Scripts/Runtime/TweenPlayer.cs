@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace UIMotionComposer
@@ -9,17 +10,20 @@ namespace UIMotionComposer
     [AddComponentMenu("UI/UI Motion Composer/Tween Player")]
     public sealed class TweenPlayer : MonoBehaviour, ISerializationCallbackReceiver
     {
+        // Declaration order is the inspector order: every field is drawn by its own property drawer.
+        [SerializeField]
+        private TweenInitialPose initialPose = new TweenInitialPose();
+
         [SerializeField]
         private List<TweenAnimation> animations = new List<TweenAnimation>();
 
-        [SerializeField]
-        private List<TweenTargetOverride> targetOverrides = new List<TweenTargetOverride>();
-
-        [SerializeField]
+        [SerializeField, TweenAnimationId]
+        [Tooltip("Animations started every time this component is enabled in play mode.")]
         private List<string> playOnEnable = new List<string>();
 
         [SerializeField]
-        private TweenInitialPose initialPose = new TweenInitialPose();
+        [Tooltip("Target slot bindings shared by every animation of this player. An animation's Local binding overrides the entry here.")]
+        private List<TweenTargetOverride> targetOverrides = new List<TweenTargetOverride>();
 
         // One-release migration bridge for scenes authored before Initial Pose became its own
         // serialized field. New data is stored only in initialPose.
@@ -114,18 +118,37 @@ namespace UIMotionComposer
         /// </summary>
         private void Awake()
         {
-            ApplyInitialPoseOnce();
+            // The player's own saved "inactive" applies only while its scene is loading, i.e. to an
+            // object left active in the scene. A later Awake means code has just activated the
+            // object (or instantiated it), and switching it off there would undo that.
+            ApplyInitialPoseOnce(!LoadedScenes.Contains(gameObject.scene));
         }
 
-        private void ApplyInitialPoseOnce()
+        private void ApplyInitialPoseOnce(bool applyOwnActive = false)
         {
             if (_initialPoseApplied || !Application.isPlaying)
                 return;
 
             _initialPoseApplied = true;
             if (InitialPose.IsCaptured)
-                RestoreInitialValues();
+                RestorePose(applyOwnActive, null);
         }
+
+        // Unity raises sceneLoaded after Awake and OnEnable of every object the scene loads active.
+        private static readonly HashSet<Scene> LoadedScenes = new HashSet<Scene>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void TrackLoadedScenes()
+        {
+            LoadedScenes.Clear();
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
+        }
+
+        private static void OnSceneLoaded(Scene scene, LoadSceneMode mode) => LoadedScenes.Add(scene);
+        private static void OnSceneUnloaded(Scene scene) => LoadedScenes.Remove(scene);
 
         private void OnEnable()
         {
@@ -312,8 +335,9 @@ namespace UIMotionComposer
         }
 
         /// <summary>
-        /// Captures the authored pose after driven layouts have settled. Initial endpoints keep
-        /// using this serialized pose across play sessions and scene reloads.
+        /// Captures the authored pose after driven layouts have settled: the properties the clips
+        /// read, then the active state and Transform of this GameObject and of every clip target.
+        /// Initial endpoints keep using this serialized pose across play sessions and scene reloads.
         /// </summary>
         [ContextMenu("Capture Initial Values")]
         public void CaptureInitialValues()
@@ -326,6 +350,7 @@ namespace UIMotionComposer
             InitialPose.Values.Clear();
             InitialPose.Captured = true;
             _isCapturingInitialValues = true;
+            var objects = new List<GameObject> { gameObject };
 
             try
             {
@@ -342,8 +367,13 @@ namespace UIMotionComposer
                         for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
                         {
                             BaseTweenClip clip = clips[clipIndex];
-                            if (clip != null && clip.Enabled)
-                                clip.Capture(this);
+                            if (clip == null || !clip.Enabled)
+                                continue;
+                            clip.Capture(this);
+                            if (clip is TargetedTweenClip targeted &&
+                                OwnerOf(targeted.ResolveConfiguredTarget(this)) is { } target &&
+                                !objects.Contains(target))
+                                objects.Add(target);
                         }
                     }
                     finally
@@ -356,6 +386,83 @@ namespace UIMotionComposer
             {
                 _isCapturingInitialValues = false;
             }
+
+            for (int i = 0; i < objects.Count; i++)
+                AddInitialObject(objects[i]);
+        }
+
+        /// <summary>
+        /// Saves the active state and Transform of <paramref name="target"/>, skipping properties
+        /// the pose already holds for it (including another form of the same one, such as the
+        /// anchored position a clip saved). Returns the number of entries added.
+        /// </summary>
+        public int AddInitialObject(GameObject target)
+        {
+            if (target == null)
+                return 0;
+
+            int added = 0;
+            foreach (string propertyId in TweenPoseProperties.ObjectProperties(target))
+            {
+                if (AddInitialValue(TweenPoseProperties.TargetFor(target, propertyId), propertyId))
+                    added++;
+            }
+            return added;
+        }
+
+        /// <summary>
+        /// Saves the current value of one property. Refused when the property is unsupported on
+        /// that target or the pose already holds it (or another form of it) for the target.
+        /// </summary>
+        public bool AddInitialValue(UnityEngine.Object target, string propertyId)
+        {
+            if (target == null || HasInitialValue(target, propertyId))
+                return false;
+
+            TweenInitialValue entry = TweenInitialValue.Read(target, propertyId);
+            if (entry == null)
+                return false;
+
+            InitialPose.Values.Add(entry);
+            InitialPose.Captured = true;
+            _initialValues.Clear();
+            return true;
+        }
+
+        /// <summary>True when the pose holds <paramref name="propertyId"/> or another form of it.</summary>
+        public bool HasInitialValue(UnityEngine.Object target, string propertyId)
+        {
+            string group = TweenPoseProperties.Group(propertyId);
+            List<TweenInitialValue> values = InitialPose.Values;
+            for (int i = 0; i < values.Count; i++)
+            {
+                TweenInitialValue entry = values[i];
+                if (entry != null && entry.Target == target &&
+                    TweenPoseProperties.Group(entry.PropertyId) == group)
+                    return true;
+            }
+            return false;
+        }
+
+        public bool RemoveInitialValueAt(int index)
+        {
+            List<TweenInitialValue> values = InitialPose.Values;
+            if (index < 0 || index >= values.Count)
+                return false;
+
+            values.RemoveAt(index);
+            _initialValues.Clear();
+            return true;
+        }
+
+        private static GameObject OwnerOf(UnityEngine.Object target)
+        {
+            return target switch
+            {
+                GameObject direct => direct,
+                Component component => component.gameObject,
+                _ => null
+            };
         }
 
         [ContextMenu("Clear Captured Initial Values")]
@@ -368,23 +475,45 @@ namespace UIMotionComposer
             InitialPose.Captured = false;
         }
 
+        /// <summary>Applies the whole saved pose. Returns the number of entries restored.</summary>
         [ContextMenu("Restore Captured Initial Pose")]
-        public int RestoreInitialValues()
+        public int RestoreInitialValues() => RestorePose(true, null);
+
+        /// <summary>Applies the saved entries of one object. Returns the number restored.</summary>
+        public int RestoreInitialValuesOf(GameObject target) => RestorePose(true, target);
+
+        private int RestorePose(bool applyOwnActive, GameObject only)
         {
             StopPreview();
             TweenRuntimeRunner.StopAll(this, false);
             _forwardEndpoints.Clear();
             RebuildDrivenLayouts();
 
-            int restored = 0;
             List<TweenInitialValue> values = InitialPose.Values;
-            if (values != null)
+            var ordered = new List<(TweenInitialValue Entry, int Index)>(values.Count);
+            for (int i = 0; i < values.Count; i++)
             {
-                for (int i = 0; i < values.Count; i++)
-                {
-                    if (values[i]?.TryApply() == true)
-                        restored++;
-                }
+                TweenInitialValue entry = values[i];
+                if (entry == null || only != null && OwnerOf(entry.Target) != only)
+                    continue;
+                if (!applyOwnActive && entry.PropertyId == TweenPoseProperties.Active && entry.Target == gameObject)
+                    continue;
+                ordered.Add((entry, i));
+            }
+
+            // Stable: entries keep their list order within one apply stage.
+            ordered.Sort((a, b) =>
+            {
+                int stage = TweenPoseProperties.ApplyOrder(a.Entry.PropertyId)
+                    .CompareTo(TweenPoseProperties.ApplyOrder(b.Entry.PropertyId));
+                return stage != 0 ? stage : a.Index.CompareTo(b.Index);
+            });
+
+            int restored = 0;
+            for (int i = 0; i < ordered.Count; i++)
+            {
+                if (ordered[i].Entry.TryApply())
+                    restored++;
             }
             return restored;
         }

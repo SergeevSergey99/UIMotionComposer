@@ -141,6 +141,12 @@ namespace UIMotionComposer
         public string ComponentType;
     }
 
+    /// <summary>Draws a string as a choice among the animation IDs of the owning TweenPlayer.</summary>
+    [AttributeUsage(AttributeTargets.Field)]
+    public sealed class TweenAnimationIdAttribute : PropertyAttribute
+    {
+    }
+
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]
     public sealed class TweenClipMenuAttribute : Attribute
     {

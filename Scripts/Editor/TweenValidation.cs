@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using UIMotionComposer.Tweening;
 using UnityEditor;
@@ -27,6 +28,7 @@ namespace UIMotionComposer.Editor
                 ValidateTargetSlot(player, animation, canvasGroup);
                 ValidateComponentBindingScopes();
                 ValidateInitialSnapshot(player, rect, animation);
+                ValidateInitialObjectStates();
                 ValidateAuthoringFingerprint(player);
                 ValidateNestedPlaybackModes(player, canvasGroup);
                 ValidateClipRepeatSemantics();
@@ -140,13 +142,16 @@ namespace UIMotionComposer.Editor
                 Duration = 1f
             });
             player.CaptureInitialValues();
-            Require(player.HasCapturedInitialValues && player.CapturedInitialValueCount == 1,
+            Require(player.HasCapturedInitialValues && player.CapturedInitialValueCount > 0,
                 "Serialized Initial snapshot was not captured.");
             TweenInitialPoseEntryInfo[] savedEntries = player.GetCapturedInitialPoseEntries();
-            Require(savedEntries.Length == 1 && savedEntries[0].Target == rect &&
+            Require(savedEntries[0].Target == rect &&
                     savedEntries[0].PropertyId == "RectTransform.AnchoredPosition" &&
                     savedEntries[0].CanRestore,
                 "Initial Pose inspection API did not describe its saved property.");
+            Require(savedEntries.Count(entry => entry.Target == rect &&
+                        TweenPoseProperties.Group(entry.PropertyId) == "Position") == 1,
+                "The object snapshot duplicated the position the clip already saved.");
 
             rect.anchoredPosition = new Vector2(250f, -80f);
             Require(player.Preview("Validation", 1f), "Initial endpoint preview did not start.");
@@ -156,8 +161,8 @@ namespace UIMotionComposer.Editor
             Require(Vector2.Distance(rect.anchoredPosition, new Vector2(250f, -80f)) < 0.001f,
                 "Preview did not restore the pose that existed before previewing Initial.");
 
-            Require(player.RestoreInitialValues() == 1,
-                "Restore Initial Pose did not report its restored property.");
+            Require(player.RestoreInitialValues() == savedEntries.Length,
+                "Restore Initial Pose did not report its restored properties.");
             Require(Vector2.Distance(rect.anchoredPosition, new Vector2(12f, 34f)) < 0.001f,
                 "Restore Initial Pose did not apply the serialized authored value.");
 
@@ -183,6 +188,77 @@ namespace UIMotionComposer.Editor
             Require(player.RestoreInitialValueAt(0) &&
                     Vector2.Distance(rect.anchoredPosition, inspectorAuthoredValue) < 0.001f,
                 "An Initial Pose value edited through SerializedProperty was not restored.");
+        }
+
+        /// <summary>
+        /// The pose also keeps the activity and Transform of the player's own GameObject and of every
+        /// animated object, even properties no clip animates.
+        /// </summary>
+        internal static void ValidateInitialObjectStates()
+        {
+            GameObject gameObject = CreateFixture(out RectTransform rect, out _, out TweenPlayer player);
+            try
+            {
+                var child = new GameObject("Icon", typeof(RectTransform));
+                var childRect = (RectTransform)child.transform;
+                childRect.SetParent(rect, false);
+                childRect.anchoredPosition = new Vector2(5f, 6f);
+                childRect.sizeDelta = new Vector2(40f, 30f);
+                childRect.localScale = new Vector3(2f, 2f, 1f);
+                child.SetActive(false);
+
+                var animation = new TweenAnimation { Id = "Objects" };
+                animation.Clips.Add(new FadeTweenClip { Duration = 0.2f });
+                animation.Clips.Add(new ToggleObjectTweenClip { Target = child });
+                player.AnimationDefinitions.Add(animation);
+
+                var bare = new GameObject("Bare", typeof(RectTransform));
+                bare.transform.SetParent(rect, false);
+                TweenPlayer barePlayer = bare.AddComponent<TweenPlayer>();
+                barePlayer.CaptureInitialValues();
+                Require(barePlayer.HasInitialValue(bare, TweenPoseProperties.Active) &&
+                        barePlayer.HasInitialValue(bare.transform, TweenPoseProperties.SizeDelta),
+                    "A player without animations did not save its own object.");
+
+                player.CaptureInitialValues();
+                Require(player.HasInitialValue(gameObject, TweenPoseProperties.Active) &&
+                        player.HasInitialValue(child, TweenPoseProperties.Active) &&
+                        player.HasInitialValue(childRect, TweenPoseProperties.LocalScale),
+                    "Capture did not save the player root and the animated child.");
+                TweenInitialPoseEntryInfo[] entries = player.GetCapturedInitialPoseEntries();
+                Require(entries.Select(entry => (entry.Target, entry.PropertyId)).Distinct().Count() == entries.Length,
+                    "The pose holds the same property twice.");
+
+                int scale = Array.FindIndex(entries, entry =>
+                    entry.Target == childRect && entry.PropertyId == TweenPoseProperties.LocalScale);
+                Require(player.RemoveInitialValueAt(scale) &&
+                        !player.HasInitialValue(childRect, TweenPoseProperties.LocalScale),
+                    "A single saved property could not be removed.");
+                Require(player.AddInitialValue(childRect, TweenPoseProperties.LocalScale) &&
+                        !player.AddInitialValue(childRect, TweenPoseProperties.LocalScale),
+                    "Adding a property must save it once and refuse a duplicate.");
+                Require(!player.AddInitialValue(childRect, TweenPoseProperties.AnchoredPosition),
+                    "Anchored Position was added although another form of the position is saved.");
+
+                child.SetActive(true);
+                childRect.anchoredPosition = new Vector2(-100f, 70f);
+                childRect.sizeDelta = new Vector2(1f, 1f);
+                childRect.localScale = Vector3.one;
+                rect.anchoredPosition = new Vector2(300f, 300f);
+
+                player.RestoreInitialValues();
+                Require(!child.activeSelf, "Restore did not return the child to inactive.");
+                Require(Vector2.Distance(childRect.anchoredPosition, new Vector2(5f, 6f)) < 0.001f &&
+                        Vector2.Distance(childRect.sizeDelta, new Vector2(40f, 30f)) < 0.001f &&
+                        Vector3.Distance(childRect.localScale, new Vector3(2f, 2f, 1f)) < 0.001f,
+                    "Restore did not return the child's RectTransform.");
+                Require(Vector2.Distance(rect.anchoredPosition, new Vector2(12f, 34f)) < 0.001f,
+                    "Restore did not return the player's own RectTransform.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+            }
         }
 
         /// <summary>

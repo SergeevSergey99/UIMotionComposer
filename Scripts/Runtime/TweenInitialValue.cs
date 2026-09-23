@@ -6,6 +6,11 @@ using UnityEngine.UI;
 
 namespace UIMotionComposer
 {
+    /// <summary>
+    /// The saved authored pose: one flat list of (target, property, value) entries. Clips add the
+    /// properties they read for Initial endpoints; capture adds each object's active state and
+    /// Transform. A property is stored once, so there is a single place to edit it.
+    /// </summary>
     [Serializable]
     public sealed class TweenInitialPose
     {
@@ -55,12 +60,99 @@ namespace UIMotionComposer
         }
     }
 
+    /// <summary>Property IDs an Initial Pose entry can hold, and which component each one lives on.</summary>
+    public static class TweenPoseProperties
+    {
+        public const string Active = "GameObject.Active";
+        public const string LocalPosition = "Transform.LocalPosition";
+        public const string Position = "Transform.Position";
+        public const string LocalRotation = "Transform.LocalRotation";
+        public const string Rotation = "Transform.Rotation";
+        public const string LocalScale = "Transform.LocalScale";
+        public const string AnchorMin = "RectTransform.AnchorMin";
+        public const string AnchorMax = "RectTransform.AnchorMax";
+        public const string Pivot = "RectTransform.Pivot";
+        public const string SizeDelta = "RectTransform.SizeDelta";
+        public const string AnchoredPosition = "RectTransform.AnchoredPosition";
+        public const string AnchoredPosition3D = "RectTransform.AnchoredPosition3D";
+        public const string Alpha = "Visual.Alpha";
+        public const string Color = "Visual.Color";
+        public const string FillAmount = "Image.FillAmount";
+
+        /// <summary>
+        /// Properties that describe the same thing. A capture that already holds one member of a
+        /// group for a target does not add another: position is either local, world or anchored.
+        /// </summary>
+        public static string Group(string propertyId)
+        {
+            return propertyId switch
+            {
+                LocalPosition or Position or AnchoredPosition or AnchoredPosition3D => "Position",
+                LocalRotation or Rotation => "Rotation",
+                _ => propertyId
+            };
+        }
+
+        /// <summary>Anchors, pivot and size first: anchored position is measured against them.</summary>
+        internal static int ApplyOrder(string propertyId)
+        {
+            return propertyId switch
+            {
+                AnchorMin or AnchorMax or Pivot => 0,
+                SizeDelta => 1,
+                Active => 3,
+                _ => 2
+            };
+        }
+
+        /// <summary>The object a property is read from on <paramref name="gameObject"/>, or null.</summary>
+        public static UnityEngine.Object TargetFor(GameObject gameObject, string propertyId, Type componentType = null)
+        {
+            if (gameObject == null)
+                return null;
+
+            switch (propertyId)
+            {
+                case Active:
+                    return gameObject;
+                case LocalPosition or Position or LocalRotation or Rotation or LocalScale:
+                    return gameObject.transform;
+                case AnchorMin or AnchorMax or Pivot or SizeDelta or AnchoredPosition or AnchoredPosition3D:
+                    return gameObject.transform as RectTransform;
+                default:
+                    return componentType != null ? gameObject.GetComponent(componentType) : null;
+            }
+        }
+
+        /// <summary>Whole-object properties saved for every object in the pose.</summary>
+        internal static IEnumerable<string> ObjectProperties(GameObject gameObject)
+        {
+            yield return Active;
+            if (gameObject.transform is RectTransform)
+            {
+                yield return AnchorMin;
+                yield return AnchorMax;
+                yield return Pivot;
+                yield return SizeDelta;
+                yield return AnchoredPosition3D;
+            }
+            else
+            {
+                yield return LocalPosition;
+            }
+
+            yield return LocalRotation;
+            yield return LocalScale;
+        }
+    }
+
     internal enum TweenInitialValueType
     {
         Float,
         Vector2,
         Vector3,
-        Color
+        Color,
+        Bool
     }
 
     /// <summary>A stable, serialized authoring value used by Initial and Offset From Initial.</summary>
@@ -74,6 +166,7 @@ namespace UIMotionComposer
         [SerializeField] private Vector2 vector2Value;
         [SerializeField] private Vector3 vector3Value;
         [SerializeField] private Color colorValue;
+        [SerializeField] private bool boolValue;
 
         public UnityEngine.Object Target => target;
         public string PropertyId => propertyId;
@@ -97,6 +190,7 @@ namespace UIMotionComposer
                 TweenInitialValueType.Vector2 => vector2Value,
                 TweenInitialValueType.Vector3 => vector3Value,
                 TweenInitialValueType.Color => colorValue,
+                TweenInitialValueType.Bool => boolValue,
                 _ => null
             };
 
@@ -136,11 +230,63 @@ namespace UIMotionComposer
                     entry.valueType = TweenInitialValueType.Color;
                     entry.colorValue = color;
                     break;
+                case bool flag:
+                    entry.valueType = TweenInitialValueType.Bool;
+                    entry.boolValue = flag;
+                    break;
                 default:
                     throw new ArgumentException($"Unsupported initial value type {typeof(T).Name}.", nameof(value));
             }
 
             return entry;
+        }
+
+        /// <summary>Reads the current value of <paramref name="propertyId"/> from <paramref name="target"/>.</summary>
+        public static TweenInitialValue Read(UnityEngine.Object target, string propertyId)
+        {
+            switch (propertyId)
+            {
+                case TweenPoseProperties.Active when target is GameObject gameObject:
+                    return Create(target, propertyId, gameObject.activeSelf);
+                case TweenPoseProperties.LocalPosition when target is Transform transform:
+                    return Create(target, propertyId, transform.localPosition);
+                case TweenPoseProperties.Position when target is Transform transform:
+                    return Create(target, propertyId, transform.position);
+                case TweenPoseProperties.LocalRotation when target is Transform transform:
+                    return Create(target, propertyId, transform.localEulerAngles);
+                case TweenPoseProperties.Rotation when target is Transform transform:
+                    return Create(target, propertyId, transform.eulerAngles);
+                case TweenPoseProperties.LocalScale when target is Transform transform:
+                    return Create(target, propertyId, transform.localScale);
+                case TweenPoseProperties.AnchorMin when target is RectTransform rect:
+                    return Create(target, propertyId, rect.anchorMin);
+                case TweenPoseProperties.AnchorMax when target is RectTransform rect:
+                    return Create(target, propertyId, rect.anchorMax);
+                case TweenPoseProperties.Pivot when target is RectTransform rect:
+                    return Create(target, propertyId, rect.pivot);
+                case TweenPoseProperties.SizeDelta when target is RectTransform rect:
+                    return Create(target, propertyId, rect.sizeDelta);
+                case TweenPoseProperties.AnchoredPosition when target is RectTransform rect:
+                    return Create(target, propertyId, rect.anchoredPosition);
+                case TweenPoseProperties.AnchoredPosition3D when target is RectTransform rect:
+                    return Create(target, propertyId, rect.anchoredPosition3D);
+                case TweenPoseProperties.Alpha when target is CanvasGroup canvasGroup:
+                    return Create(target, propertyId, canvasGroup.alpha);
+                case TweenPoseProperties.Alpha when target is Graphic graphic:
+                    return Create(target, propertyId, graphic.color.a);
+                case TweenPoseProperties.Alpha when target is SpriteRenderer spriteRenderer:
+                    return Create(target, propertyId, spriteRenderer.color.a);
+                case TweenPoseProperties.Color when target is Graphic graphic:
+                    return Create(target, propertyId, graphic.color);
+                case TweenPoseProperties.Color when target is SpriteRenderer spriteRenderer:
+                    return Create(target, propertyId, spriteRenderer.color);
+                case TweenPoseProperties.Color when target is Renderer renderer && renderer.sharedMaterial != null:
+                    return Create(target, propertyId, renderer.sharedMaterial.color);
+                case TweenPoseProperties.FillAmount when target is Image image:
+                    return Create(target, propertyId, image.fillAmount);
+                default:
+                    return null;
+            }
         }
 
         public bool TryApply()
@@ -150,40 +296,50 @@ namespace UIMotionComposer
 
             switch (propertyId)
             {
-                case "Transform.LocalPosition":
+                case TweenPoseProperties.Active:
+                    if (((GameObject)target).activeSelf != boolValue)
+                        ((GameObject)target).SetActive(boolValue);
+                    break;
+                case TweenPoseProperties.LocalPosition:
                     ((Transform)target).localPosition = vector3Value;
                     break;
-                case "Transform.Position":
+                case TweenPoseProperties.Position:
                     ((Transform)target).position = vector3Value;
                     break;
-                case "Transform.LocalScale":
+                case TweenPoseProperties.LocalScale:
                     ((Transform)target).localScale = vector3Value;
                     break;
-                case "Transform.LocalRotation":
+                case TweenPoseProperties.LocalRotation:
                     ((Transform)target).localRotation = Quaternion.Euler(vector3Value);
                     break;
-                case "Transform.Rotation":
+                case TweenPoseProperties.Rotation:
                     ((Transform)target).rotation = Quaternion.Euler(vector3Value);
                     break;
-                case "RectTransform.AnchoredPosition":
+                case TweenPoseProperties.AnchorMin:
+                    ((RectTransform)target).anchorMin = vector2Value;
+                    break;
+                case TweenPoseProperties.AnchorMax:
+                    ((RectTransform)target).anchorMax = vector2Value;
+                    break;
+                case TweenPoseProperties.AnchoredPosition:
                     ((RectTransform)target).anchoredPosition = vector2Value;
                     break;
-                case "RectTransform.AnchoredPosition3D":
+                case TweenPoseProperties.AnchoredPosition3D:
                     ((RectTransform)target).anchoredPosition3D = vector3Value;
                     break;
-                case "RectTransform.SizeDelta":
+                case TweenPoseProperties.SizeDelta:
                     ((RectTransform)target).sizeDelta = vector2Value;
                     break;
-                case "RectTransform.Pivot":
+                case TweenPoseProperties.Pivot:
                     ((RectTransform)target).pivot = vector2Value;
                     break;
-                case "Visual.Alpha":
+                case TweenPoseProperties.Alpha:
                     ApplyAlpha(floatValue);
                     break;
-                case "Visual.Color":
+                case TweenPoseProperties.Color:
                     ApplyColor(colorValue);
                     break;
-                case "Image.FillAmount":
+                case TweenPoseProperties.FillAmount:
                     ((Image)target).fillAmount = floatValue;
                     break;
                 default:
@@ -200,18 +356,20 @@ namespace UIMotionComposer
 
             return propertyId switch
             {
-                "Transform.LocalPosition" or "Transform.Position" or "Transform.LocalScale" or
-                "Transform.LocalRotation" or "Transform.Rotation" =>
+                TweenPoseProperties.Active => valueType == TweenInitialValueType.Bool && target is GameObject,
+                TweenPoseProperties.LocalPosition or TweenPoseProperties.Position or TweenPoseProperties.LocalScale or
+                TweenPoseProperties.LocalRotation or TweenPoseProperties.Rotation =>
                     valueType == TweenInitialValueType.Vector3 && target is Transform,
-                "RectTransform.AnchoredPosition" or "RectTransform.SizeDelta" or "RectTransform.Pivot" =>
+                TweenPoseProperties.AnchoredPosition or TweenPoseProperties.SizeDelta or TweenPoseProperties.Pivot or
+                TweenPoseProperties.AnchorMin or TweenPoseProperties.AnchorMax =>
                     valueType == TweenInitialValueType.Vector2 && target is RectTransform,
-                "RectTransform.AnchoredPosition3D" =>
+                TweenPoseProperties.AnchoredPosition3D =>
                     valueType == TweenInitialValueType.Vector3 && target is RectTransform,
-                "Visual.Alpha" => valueType == TweenInitialValueType.Float &&
-                                  target is CanvasGroup or Graphic or SpriteRenderer,
-                "Visual.Color" => valueType == TweenInitialValueType.Color &&
-                                  target is Graphic or SpriteRenderer or Renderer,
-                "Image.FillAmount" => valueType == TweenInitialValueType.Float && target is Image,
+                TweenPoseProperties.Alpha => valueType == TweenInitialValueType.Float &&
+                                             target is CanvasGroup or Graphic or SpriteRenderer,
+                TweenPoseProperties.Color => valueType == TweenInitialValueType.Color &&
+                                             target is Graphic or SpriteRenderer or Renderer,
+                TweenPoseProperties.FillAmount => valueType == TweenInitialValueType.Float && target is Image,
                 _ => false
             };
         }
@@ -279,6 +437,7 @@ namespace UIMotionComposer
                     $"({Number(vector3Value.x)}, {Number(vector3Value.y)}, {Number(vector3Value.z)})",
                 TweenInitialValueType.Color =>
                     $"RGBA({Number(colorValue.r)}, {Number(colorValue.g)}, {Number(colorValue.b)}, {Number(colorValue.a)})",
+                TweenInitialValueType.Bool => boolValue ? "On" : "Off",
                 _ => "—"
             };
         }

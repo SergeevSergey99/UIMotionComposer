@@ -66,6 +66,12 @@ namespace UIMotionComposer.Tests
         }
 
         [Test]
+        public void InitialPose_KeepsAnimatedObjectsActiveStateAndTransform()
+        {
+            TweenValidation.ValidateInitialObjectStates();
+        }
+
+        [Test]
         public void TargetSlot_ResolvesThroughPlayerBindings()
         {
             TweenAnimation animation = TweenValidation.ValidatePreviewSampling(_player, _rect, _canvasGroup);

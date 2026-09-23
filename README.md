@@ -10,10 +10,11 @@ Runtime types live in the `UIMotionComposer` namespace. Editor tooling lives in
 ## Quick start
 
 1. Add **UI Motion Composer/Tween Player** to a UI object.
-2. Press **+ Animation** and enter an ID such as `Show`, `Hide`, `Hover` or `Click`.
+2. Press **+** under **Animations** and enter an ID such as `Show`, `Hide`, `Hover` or `Click`.
+   A new entry starts as a copy of the last one with its own clips; **Duplicate** copies any animation.
 3. Press **+ Add clip** and choose a Transform, Rect Transform, Visual, Effect, Text or Utility clip.
 4. Arrange clips in **Visual Timeline**, or enter exact Delay and Duration values.
-5. Press **Capture Initial Pose** after layout has settled.
+5. Press **Capture Pose** in **Initial Pose** after layout has settled.
 6. Scrub or play the edit-mode preview. **Restore** returns every affected object to its captured
    pre-preview pose.
 
@@ -24,10 +25,27 @@ In play mode the captured pose is also the starting state: the player applies it
 the first `Play`, whichever comes first. Objects can be moved anywhere in the editor to keep them from
 overlapping and still start where the pose says.
 
-The **Initial Pose** section lists every saved object, hierarchy path, property and value. **Restore
-Pose** applies the complete saved pose without recapturing it; each property also has its own Restore
-button. Missing targets are reported and can be removed. This is separate from preview Restore,
-which returns objects to the state they had immediately before preview started.
+The pose is one list of saved properties, each stored once. Capture saves what the clips read for
+`Initial` and `Offset From Initial`, then the active state and local Transform (anchors, pivot, size
+and anchored position for a RectTransform) of the player's own GameObject, even with no animations,
+and of every object the animations target. A property the pose already holds in another form, such
+as the anchored position a clip saved, is not saved again. Restore applies anchors, pivot and size
+before positions.
+
+The player's own saved "inactive" is applied while its scene loads, so a player left active in the
+scene starts switched off. It is not applied when code activates or instantiates the object later:
+that `Awake` must not undo the activation.
+
+The **Initial Pose** section groups the saved properties by object. Each object has **+** to save
+another of its properties, Restore, and ✕ to stop saving it; each property has its own Restore and ✕.
+**Add object** saves the active state and Transform of a dropped object. **Restore Pose** applies
+the complete saved pose without recapturing it. Missing targets are reported and can be removed.
+This is separate from preview Restore, which returns objects to the state they had immediately
+before preview started.
+
+The TweenPlayer inspector is built from property drawers, one per serialized field type (Initial
+Pose and its entries, animation, playback settings, target binding, animation ID). The component's
+own editor only switches it to UI Toolkit so those drawers run under inspector replacements too.
 
 ## Timeline
 

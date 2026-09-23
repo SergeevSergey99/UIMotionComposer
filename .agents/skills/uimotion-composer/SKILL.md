@@ -23,7 +23,8 @@ Prefer Unity's serialized UI and native property controls.
 
 - When one field needs special presentation or actions, introduce a focused serializable wrapper and a `CustomPropertyDrawer` for that wrapper or value type.
 - Draw editable values through `EditorGUI.PropertyField` so colors, vectors, object references, enums, curves, and UnityEvents retain standard Unity behavior.
-- Do not replace an entire component inspector merely to customize one section. A component `CustomEditor` is appropriate only for coordination that spans fields, such as Timeline selection, preview lifetime, validation, or animation-level commands.
+- Do not replace an entire component inspector merely to customize one section. Draw each serialized type with its own drawer. `TweenPlayer` is the model: `TweenInitialPoseDrawer` (entries grouped by object, add/remove per field), `TweenInitialValueDrawer`, `TweenAnimationDrawer` (timeline, clips, slots, preview), `TweenPlaybackSettingsDrawer`, `TweenTargetOverrideDrawer`, `TweenAnimationIdDrawer`. Its `CustomEditor` only fills the default inspector with UI Toolkit, so Odin or another IMGUI inspector replacement does not bypass the drawers.
+- Drawers are UI Toolkit (`CreatePropertyGUI`). Existing `GUILayout` tools such as the Timeline and clip list are hosted in an `IMGUIContainer` rather than rewritten.
 - Keep runtime data independent of editor-only display state.
 - Editor mutations must use `SerializedObject`/`SerializedProperty`, support Undo, mark objects dirty, record prefab-instance modifications when applicable, and invalidate preview/authoring caches.
 - Preview must not permanently dirty transforms or fire side-effect clips. Stop and restore preview on selection, focus, play-mode, undo, and assembly-reload boundaries.
@@ -32,6 +33,7 @@ Prefer Unity's serialized UI and native property controls.
 
 - `Initial` means the serialized authored pose, not whichever value happens to exist on first playback when a pose has been captured.
 - Rebuild driven UI layouts before capturing Initial Pose.
+- Initial Pose is one flat list of (target, property, value) entries; a property is stored once per target (`TweenPoseProperties.Group` treats local/world/anchored position as one). Capture adds clip-read values, then active state and Transform/RectTransform of the TweenPlayer's own GameObject (always) and of every clip target. Restore applies anchors, pivot and size before positions. The player's own saved active flag is applied only by an Awake during scene load (before `SceneManager.sceneLoaded` for its scene), never by a later activation or instantiation.
 - Runtime and preview sampling must agree.
 - Resolve conflicts per target property binding, not per animation as a whole.
 - Hover child loops must be stoppable by state transitions; nested animation playback must preserve `Fire And Forget`, `Wait`, and `Link Lifetime` semantics.
