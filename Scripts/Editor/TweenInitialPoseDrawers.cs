@@ -98,7 +98,7 @@ namespace UIMotionComposer.Editor
             _foldout.Add(_removeMissing);
 
             RegisterCallback<AttachToPanelEvent>(_ => Refresh());
-            schedule.Execute(Refresh).Every(250);
+            TweenInspectorUI.Poll(this, _owner, 250, Refresh);
         }
 
         private SerializedProperty Property()

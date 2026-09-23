@@ -57,23 +57,42 @@ namespace UIMotionComposer.Editor
             Undo.undoRedoPerformed += OnUndoRedo;
         }
 
+        /// <summary>
+        /// Called when the drawer leaves the inspector. Stopping Animation Mode makes Unity refresh
+        /// every inspector binding, and during a detach some of them belong to a SerializedObject
+        /// that is already disposed, so the teardown waits for the next editor tick. A drawer that
+        /// reattaches before then (list reorder) keeps its preview.
+        /// </summary>
+        public void Release()
+        {
+            Unhook();
+            EditorApplication.delayCall += () =>
+            {
+                if (!_hooked)
+                    Dispose();
+            };
+        }
+
         public void Dispose()
         {
-            if (_hooked)
-            {
-                _hooked = false;
-                EditorApplication.update -= Update;
-                EditorApplication.focusChanged -= OnFocusChanged;
-                EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
-                AssemblyReloadEvents.beforeAssemblyReload -= Stop;
-                Undo.undoRedoPerformed -= OnUndoRedo;
-            }
-
+            Unhook();
             Stop();
             _animationMode?.Dispose();
             _animationMode = null;
             _assetSource?.Dispose();
             _assetSource = null;
+        }
+
+        private void Unhook()
+        {
+            if (!_hooked)
+                return;
+            _hooked = false;
+            EditorApplication.update -= Update;
+            EditorApplication.focusChanged -= OnFocusChanged;
+            EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+            AssemblyReloadEvents.beforeAssemblyReload -= Stop;
+            Undo.undoRedoPerformed -= OnUndoRedo;
         }
 
         public void Scrub(float normalizedTime)

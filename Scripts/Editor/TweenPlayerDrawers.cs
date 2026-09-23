@@ -51,23 +51,24 @@ namespace UIMotionComposer.Editor
             SerializedObject owner = property.serializedObject;
             var player = owner.targetObjects.Length == 1 ? owner.targetObject as TweenPlayer : null;
             SerializedProperty key = property.FindPropertyRelative("Key");
+            string keyPath = key.propertyPath;
 
             VisualElement box = TweenInspectorUI.Box();
             box.Add(new PropertyField(key, "Slot"));
-            box.Add(BuildRule(property, player, () => TweenTargetSlots.ForKey(player, key.stringValue)));
+            box.Add(BuildRule(property, player, () => TweenTargetSlots.ForKey(player, SafeString(owner, keyPath))));
 
             if (player != null)
             {
                 Label status = TweenInspectorUI.Mini(string.Empty);
                 box.Add(status);
-                box.schedule.Execute(() =>
+                TweenInspectorUI.Poll(box, owner, 300, () =>
                 {
-                    string slotKey = SafeString(owner, key.propertyPath);
+                    string slotKey = SafeString(owner, keyPath);
                     if (slotKey == null)
                         return;
                     UnityEngine.Object resolved = player.ResolveTargetBinding(slotKey);
                     status.text = resolved != null ? $"Resolves to {Describe(resolved)}" : "Resolves to nothing";
-                }).Every(300);
+                });
             }
 
             return box;
@@ -197,6 +198,8 @@ namespace UIMotionComposer.Editor
 
             void Refresh()
             {
+                if (!TweenInspectorUI.IsAlive(owner))
+                    return;
                 SerializedProperty current = owner.FindProperty(path);
                 if (current == null)
                     return;
@@ -358,11 +361,11 @@ namespace UIMotionComposer.Editor
             });
             RegisterCallback<DetachFromPanelEvent>(_ =>
             {
-                _preview.Dispose();
+                _preview.Release();
                 _assetSource?.Dispose();
                 _assetSource = null;
             });
-            schedule.Execute(Refresh).Every(200);
+            TweenInspectorUI.Poll(this, _owner, 200, Refresh);
         }
 
         private SerializedProperty Property()
@@ -846,6 +849,36 @@ namespace UIMotionComposer.Editor
             if (width > 0f)
                 button.style.width = width;
             return button;
+        }
+
+        /// <summary>
+        /// Runs <paramref name="tick"/> every <paramref name="intervalMs"/> while the inspector's
+        /// SerializedObject lives. Unity disposes it when it rebuilds the inspector, while the old
+        /// elements' timers may still fire; those timers stop here instead of reading it.
+        /// </summary>
+        public static void Poll(VisualElement element, SerializedObject owner, long intervalMs, Action tick)
+        {
+            IVisualElementScheduledItem item = null;
+            item = element.schedule.Execute(() =>
+            {
+                if (IsAlive(owner))
+                    tick();
+                else
+                    item.Pause();
+            }).Every(intervalMs);
+        }
+
+        public static bool IsAlive(SerializedObject owner)
+        {
+            try
+            {
+                return owner != null && owner.targetObject != null;
+            }
+            catch (Exception)
+            {
+                // Disposed SerializedObjects throw instead of returning null.
+                return false;
+            }
         }
 
         public static void Show(VisualElement element, bool visible)
