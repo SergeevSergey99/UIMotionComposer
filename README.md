@@ -84,8 +84,9 @@ launch unrelated animations without state ownership.
 
 ## Panel lifecycle
 
-Add **UI Motion Composer/Tween UI Panel** for a ready-made panel lifecycle. It activates before Show,
-disables input while hiding and can deactivate the GameObject when Hide completes.
+Add **UI Motion Composer/Tween UI Panel** for a ready-made panel lifecycle. It activates before Show
+and can deactivate the GameObject when Hide completes. Add **Tween UI Panel Interaction** next to it
+to keep the CanvasGroup interactive only while the panel is Visible (optionally also while Showing).
 
 ```csharp
 tweenPanel.Show(() => OpenFirstField());
@@ -96,6 +97,10 @@ tweenPanel.InstantHide();
 
 The inspector selects Show and Hide IDs from the attached player and reports missing or infinitely
 looping transition animations.
+
+Every ShowStarted/HideStarted is followed by exactly one Completed or Cancelled. A transition interrupted
+by the opposite call, by deactivation or by stopping the player reports Cancelled; when Show or Hide
+interrupts it, Cancelled arrives before the new Started. Listeners may call Show or Hide again.
 
 ## Shared animation assets and target slots
 

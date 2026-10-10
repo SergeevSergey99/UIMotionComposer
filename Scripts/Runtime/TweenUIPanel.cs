@@ -13,16 +13,15 @@ namespace UIMotionComposer
     }
 
     /// <summary>
-    /// Thin Show/Hide wrapper around TweenPlayer. It owns panel activation and CanvasGroup input
-    /// state while the player remains responsible only for motion.
+    /// Thin Show/Hide wrapper around TweenPlayer. It owns panel activation while the player remains
+    /// responsible only for motion.
     /// </summary>
     [DisallowMultipleComponent]
-    [RequireComponent(typeof(RectTransform), typeof(CanvasGroup), typeof(TweenPlayer))]
+    [RequireComponent(typeof(RectTransform), typeof(TweenPlayer))]
     [AddComponentMenu("UI/UI Motion Composer/Tween UI Panel")]
     public sealed class TweenUIPanel : MonoBehaviour
     {
         [SerializeField] private TweenPlayer player;
-        [SerializeField] private CanvasGroup canvasGroup;
 
         [Header("Animations")]
         [SerializeField] private string showAnimation = TweenIds.Show;
@@ -31,8 +30,6 @@ namespace UIMotionComposer
         [Header("Behaviour")]
         [SerializeField] private bool hideOnAwake = true;
         [SerializeField] private bool deactivateWhenHidden = true;
-        [SerializeField] private bool manageInteractability = true;
-        [SerializeField] private bool interactableWhileShowing;
 
         [Header("Events")]
         [SerializeField] private UnityEvent onShowStarted = new UnityEvent();
@@ -43,7 +40,6 @@ namespace UIMotionComposer
         [SerializeField] private UnityEvent onHideCancelled = new UnityEvent();
 
         private TweenHandle _transition = TweenHandle.Invalid;
-        private int _transitionVersion;
         private bool _showRequestedBeforeAwake;
         private bool _initialized;
 
@@ -51,7 +47,6 @@ namespace UIMotionComposer
         private TweenPanelState _interruptedFrom = TweenPanelState.Hidden;
 
         public TweenPlayer Player => player;
-        public CanvasGroup CanvasGroup => canvasGroup;
         public TweenPanelState State { get; private set; } = TweenPanelState.Visible;
         public bool IsVisible => State is TweenPanelState.Visible or TweenPanelState.Showing;
         public bool IsTransitioning => _transition.IsActive;
@@ -80,6 +75,7 @@ namespace UIMotionComposer
             set => deactivateWhenHidden = value;
         }
 
+        public event Action<TweenPanelState> StateChanged;
         public event Action ShowStarted;
         public event Action ShowCompleted;
         public event Action ShowCancelled;
@@ -89,21 +85,18 @@ namespace UIMotionComposer
 
         private void Awake()
         {
-            ResolveReferences();
             _initialized = true;
 
             if (hideOnAwake && !_showRequestedBeforeAwake)
                 ApplyHiddenState(deactivateWhenHidden);
             else
-            {
-                State = TweenPanelState.Visible;
-                SetInteraction(true);
-            }
+                SetState(TweenPanelState.Visible);
         }
 
         private void OnValidate()
         {
-            ResolveReferences();
+            if (player == null)
+                player = GetComponent<TweenPlayer>();
         }
 
         public void Show()
@@ -113,30 +106,7 @@ namespace UIMotionComposer
 
         public void Show(Action callback)
         {
-            ResolveReferences();
-            int version = BeginTransition();
-            _showRequestedBeforeAwake = true;
-            if (!gameObject.activeSelf)
-                gameObject.SetActive(true);
-            _showRequestedBeforeAwake = false;
-
-            State = TweenPanelState.Showing;
-            SetInteraction(interactableWhileShowing);
-            onShowStarted?.Invoke();
-            ShowStarted?.Invoke();
-
-            _transition = player != null && !string.IsNullOrWhiteSpace(showAnimation)
-                ? player.Play(showAnimation)
-                : TweenHandle.Invalid;
-            if (!_transition.IsValid)
-            {
-                CompleteShow(version, callback);
-                return;
-            }
-
-            _transition
-                .OnCompleted(() => CompleteShow(version, callback))
-                .OnCancelled(() => CancelShow(version));
+            BeginShow(callback, false);
         }
 
         public void Hide()
@@ -146,77 +116,17 @@ namespace UIMotionComposer
 
         public void Hide(Action callback)
         {
-            ResolveReferences();
-            if (!gameObject.activeSelf)
-            {
-                // Nothing to animate, but callers still get the same started/completed pair they
-                // would get from a real transition.
-                int inactiveVersion = BeginTransition();
-                State = TweenPanelState.Hiding;
-                SetInteraction(false);
-                onHideStarted?.Invoke();
-                HideStarted?.Invoke();
-                CompleteHide(inactiveVersion, callback);
-                return;
-            }
-
-            int version = BeginTransition();
-            State = TweenPanelState.Hiding;
-            SetInteraction(false);
-            onHideStarted?.Invoke();
-            HideStarted?.Invoke();
-
-            _transition = player != null && !string.IsNullOrWhiteSpace(hideAnimation)
-                ? player.Play(hideAnimation)
-                : TweenHandle.Invalid;
-            if (!_transition.IsValid)
-            {
-                CompleteHide(version, callback);
-                return;
-            }
-
-            _transition
-                .OnCompleted(() => CompleteHide(version, callback))
-                .OnCancelled(() => CancelHide(version));
+            BeginHide(callback, false);
         }
 
         public void InstantShow()
         {
-            ResolveReferences();
-            int version = BeginTransition();
-            _showRequestedBeforeAwake = true;
-            if (!gameObject.activeSelf)
-                gameObject.SetActive(true);
-            _showRequestedBeforeAwake = false;
-
-            State = TweenPanelState.Showing;
-            SetInteraction(false);
-            onShowStarted?.Invoke();
-            ShowStarted?.Invoke();
-
-            TweenHandle handle = player != null && !string.IsNullOrWhiteSpace(showAnimation)
-                ? player.Play(showAnimation)
-                : TweenHandle.Invalid;
-            if (handle.IsValid)
-                handle.Complete();
-            CompleteShow(version, null);
+            BeginShow(null, true);
         }
 
         public void InstantHide()
         {
-            ResolveReferences();
-            int version = BeginTransition();
-            State = TweenPanelState.Hiding;
-            SetInteraction(false);
-            onHideStarted?.Invoke();
-            HideStarted?.Invoke();
-
-            TweenHandle handle = player != null && !string.IsNullOrWhiteSpace(hideAnimation)
-                ? player.Play(hideAnimation)
-                : TweenHandle.Invalid;
-            if (handle.IsValid)
-                handle.Complete();
-            CompleteHide(version, null);
+            BeginHide(null, true);
         }
 
         public void SetVisible(bool visible, bool instant = false)
@@ -233,91 +143,130 @@ namespace UIMotionComposer
             }
         }
 
-        private int BeginTransition()
+        // State and side effects come before the events in every step below, so a listener that
+        // calls Show or Hide again starts from a settled panel and nothing after it overwrites the result.
+        private void BeginShow(Action callback, bool instant)
         {
-            int version = ++_transitionVersion;
-            if (_transition.IsActive)
-                _transition.Stop();
-            _transition = TweenHandle.Invalid;
-            return version;
+            StopTransition();
+            _showRequestedBeforeAwake = true;
+            if (!gameObject.activeSelf)
+                gameObject.SetActive(true);
+            _showRequestedBeforeAwake = false;
+
+            TweenHandle handle = Play(showAnimation);
+            if (instant)
+            {
+                handle.Complete();
+                handle = TweenHandle.Invalid;
+            }
+
+            _transition = handle;
+            SetState(TweenPanelState.Showing);
+            if (handle.IsValid)
+                handle.OnCompleted(() => CompleteShow(callback)).OnCancelled(() => CancelShow(handle));
+
+            onShowStarted?.Invoke();
+            ShowStarted?.Invoke();
+
+            if (State == TweenPanelState.Showing && !_transition.IsValid)
+                CompleteShow(callback);
         }
 
-        private void CompleteShow(int version, Action callback)
+        private void BeginHide(Action callback, bool instant)
         {
-            if (version != _transitionVersion)
-                return;
+            StopTransition();
 
+            // An inactive panel has nothing to animate, but InstantHide still snaps it to the hidden pose.
+            TweenHandle handle = instant || gameObject.activeSelf ? Play(hideAnimation) : TweenHandle.Invalid;
+            if (instant)
+            {
+                handle.Complete();
+                handle = TweenHandle.Invalid;
+            }
+
+            _transition = handle;
+            SetState(TweenPanelState.Hiding);
+            if (handle.IsValid)
+                handle.OnCompleted(() => CompleteHide(callback)).OnCancelled(() => CancelHide(handle));
+
+            onHideStarted?.Invoke();
+            HideStarted?.Invoke();
+
+            if (State == TweenPanelState.Hiding && !_transition.IsValid)
+                CompleteHide(callback);
+        }
+
+        private TweenHandle Play(string animationId)
+        {
+            return player != null && !string.IsNullOrWhiteSpace(animationId)
+                ? player.Play(animationId)
+                : TweenHandle.Invalid;
+        }
+
+        // Clearing the field before Stop tells the cancelled callback that a newer transition owns the state.
+        private void StopTransition()
+        {
+            TweenHandle previous = _transition;
             _transition = TweenHandle.Invalid;
-            State = TweenPanelState.Visible;
-            SetInteraction(true);
+            previous.Stop();
+        }
+
+        private void CompleteShow(Action callback)
+        {
+            _transition = TweenHandle.Invalid;
+            SetState(TweenPanelState.Visible);
             callback?.Invoke();
             onShowCompleted?.Invoke();
             ShowCompleted?.Invoke();
         }
 
-        private void CancelShow(int version)
+        private void CancelShow(TweenHandle handle)
         {
-            if (version != _transitionVersion)
-                return;
+            if (_transition == handle)
+            {
+                _transition = TweenHandle.Invalid;
+                SetState(TweenPanelState.Visible);
+            }
 
-            _transition = TweenHandle.Invalid;
-            State = TweenPanelState.Visible;
-            SetInteraction(true);
             onShowCancelled?.Invoke();
             ShowCancelled?.Invoke();
         }
 
-        private void CompleteHide(int version, Action callback)
+        private void CompleteHide(Action callback)
         {
-            if (version != _transitionVersion)
-                return;
-
             _transition = TweenHandle.Invalid;
-            State = TweenPanelState.Hidden;
-            SetInteraction(false);
+            SetState(TweenPanelState.Hidden);
+            if (deactivateWhenHidden && gameObject.activeSelf)
+                gameObject.SetActive(false);
+
             callback?.Invoke();
             onHideCompleted?.Invoke();
             HideCompleted?.Invoke();
-
-            if (deactivateWhenHidden && gameObject.activeSelf)
-                gameObject.SetActive(false);
         }
 
-        private void CancelHide(int version)
+        private void CancelHide(TweenHandle handle)
         {
-            if (version != _transitionVersion)
-                return;
+            if (_transition == handle)
+            {
+                _transition = TweenHandle.Invalid;
+                SetState(TweenPanelState.Visible);
+            }
 
-            _transition = TweenHandle.Invalid;
-            State = TweenPanelState.Visible;
-            SetInteraction(true);
             onHideCancelled?.Invoke();
             HideCancelled?.Invoke();
         }
 
         private void ApplyHiddenState(bool deactivate)
         {
-            State = TweenPanelState.Hidden;
-            SetInteraction(false);
+            SetState(TweenPanelState.Hidden);
             if (deactivate && gameObject.activeSelf)
                 gameObject.SetActive(false);
         }
 
-        private void SetInteraction(bool value)
+        private void SetState(TweenPanelState state)
         {
-            if (!manageInteractability || canvasGroup == null)
-                return;
-
-            canvasGroup.interactable = value;
-            canvasGroup.blocksRaycasts = value;
-        }
-
-        private void ResolveReferences()
-        {
-            if (player == null)
-                player = GetComponent<TweenPlayer>();
-            if (canvasGroup == null)
-                canvasGroup = GetComponent<CanvasGroup>();
+            State = state;
+            StateChanged?.Invoke(state);
         }
 
         private void OnDisable()
@@ -326,12 +275,9 @@ namespace UIMotionComposer
             if (!_initialized || !_transition.IsActive)
                 return;
 
-            ++_transitionVersion;
-            _transition.Stop();
-            _transition = TweenHandle.Invalid;
             _interruptedFrom = State;
-            State = TweenPanelState.Hidden;
-            SetInteraction(false);
+            StopTransition();
+            SetState(TweenPanelState.Hidden);
         }
 
         /// <summary>
@@ -348,14 +294,12 @@ namespace UIMotionComposer
             bool wasShowing = _interruptedFrom == TweenPanelState.Showing;
             _interruptedFrom = TweenPanelState.Hidden;
 
-            State = wasShowing ? TweenPanelState.Visible : TweenPanelState.Hidden;
-            SetInteraction(wasShowing);
+            SetState(wasShowing ? TweenPanelState.Visible : TweenPanelState.Hidden);
         }
 
         private void OnDestroy()
         {
-            if (_transition.IsActive)
-                _transition.Stop();
+            StopTransition();
         }
     }
 }

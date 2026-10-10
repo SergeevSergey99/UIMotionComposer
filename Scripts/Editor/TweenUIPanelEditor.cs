@@ -10,36 +10,29 @@ namespace UIMotionComposer.Editor
     public sealed class TweenUIPanelEditor : UnityEditor.Editor
     {
         private SerializedProperty _player;
-        private SerializedProperty _canvasGroup;
         private SerializedProperty _showAnimation;
         private SerializedProperty _hideAnimation;
         private SerializedProperty _hideOnAwake;
         private SerializedProperty _deactivateWhenHidden;
-        private SerializedProperty _manageInteractability;
-        private SerializedProperty _interactableWhileShowing;
         private bool _showEvents;
 
         private void OnEnable()
         {
             _player = serializedObject.FindProperty("player");
-            _canvasGroup = serializedObject.FindProperty("canvasGroup");
             _showAnimation = serializedObject.FindProperty("showAnimation");
             _hideAnimation = serializedObject.FindProperty("hideAnimation");
             _hideOnAwake = serializedObject.FindProperty("hideOnAwake");
             _deactivateWhenHidden = serializedObject.FindProperty("deactivateWhenHidden");
-            _manageInteractability = serializedObject.FindProperty("manageInteractability");
-            _interactableWhileShowing = serializedObject.FindProperty("interactableWhileShowing");
         }
 
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
             EditorGUILayout.HelpBox(
-                "Panel lifecycle wrapper. TweenPlayer composes motion; this component controls activation, input and Show/Hide callbacks.",
+                "Panel lifecycle wrapper. TweenPlayer composes motion; this component controls activation and Show/Hide callbacks. Add Tween UI Panel Interaction to switch CanvasGroup input with the panel state.",
                 MessageType.Info);
 
             EditorGUILayout.PropertyField(_player);
-            EditorGUILayout.PropertyField(_canvasGroup);
 
             TweenPlayer player = ResolvePlayer();
             string[] animationIds = player == null
@@ -70,10 +63,7 @@ namespace UIMotionComposer.Editor
             EditorGUILayout.PropertyField(_hideOnAwake, new GUIContent("Hide on Awake"));
             EditorGUILayout.PropertyField(_deactivateWhenHidden, new GUIContent("Deactivate when hidden"));
             if (_hideOnAwake.boolValue && !_deactivateWhenHidden.boolValue)
-                EditorGUILayout.HelpBox("Hide on Awake will disable input but keep this GameObject active. Ensure its authored pose is visually hidden.", MessageType.Info);
-            EditorGUILayout.PropertyField(_manageInteractability, new GUIContent("Manage interactability"));
-            if (_manageInteractability.boolValue)
-                EditorGUILayout.PropertyField(_interactableWhileShowing, new GUIContent("Interactable while showing"));
+                EditorGUILayout.HelpBox("Hide on Awake keeps this GameObject active. Ensure its authored pose is visually hidden.", MessageType.Info);
 
             _showEvents = EditorGUILayout.Foldout(_showEvents, "Events", true);
             if (_showEvents)

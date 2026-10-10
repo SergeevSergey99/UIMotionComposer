@@ -158,6 +158,12 @@ namespace UIMotionComposer.Tests
         }
 
         [Test]
+        public void Panel_PairsEveryStartWithAnEndWhenShowAndHideInterruptEachOther()
+        {
+            TweenValidation.ValidatePanelTransitions();
+        }
+
+        [Test]
         public void AnimationMode_RestoresPoseWithoutTouchingUndo()
         {
             TweenValidation.ValidateAnimationModeRestore(_rect);

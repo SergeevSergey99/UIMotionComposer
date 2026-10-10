@@ -134,6 +134,7 @@ GameObject:
   - component: {fileID: 4745902}
   - component: {fileID: 4745903}
   - component: {fileID: 4745901}
+  - component: {fileID: 4745907}
   m_Layer: 0
   m_Name: 04 HUD Progress Panel
   m_TagString: Untagged
@@ -179,13 +180,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 4745903}
-  canvasGroup: {fileID: 4745902}
   showAnimation: Show
   hideAnimation: Hide
   hideOnAwake: 0
   deactivateWhenHidden: 1
-  manageInteractability: 1
-  interactableWhileShowing: 0
   onShowStarted:
     m_PersistentCalls:
       m_Calls: []
@@ -228,13 +226,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 4745902}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 4745900}
+      propertyId: RectTransform.AnchoredPosition
+      valueType: 1
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 847928975}
+      propertyId: Image.FillAmount
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Show
     Asset: {fileID: 0}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -258,7 +282,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -274,33 +297,9 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
-  targetOverrides: []
   playOnEnable:
   - Show
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 4745902}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 4745900}
-      propertyId: RectTransform.AnchoredPosition
-      valueType: 1
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 847928975}
-      propertyId: Image.FillAmount
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
+  targetOverrides: []
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -585,6 +584,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4745899}
   m_CullTransparentMesh: 1
+--- !u!114 &4745907
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4745899}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e431b4595dae1df4da39bd2b62701e8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  panel: {fileID: 4745901}
+  canvasGroup: {fileID: 4745902}
+  interactableWhileShowing: 0
 --- !u!1 &18120497
 GameObject:
   m_ObjectHideFlags: 0
@@ -768,13 +782,71 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 567685029}
+      propertyId: Transform.LocalRotation
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: -0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 399961151}
+      propertyId: RectTransform.AnchoredPosition
+      valueType: 1
+      floatValue: 0
+      vector2Value: {x: 0, y: 15}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1500205752}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 29458621}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 399961151}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 29458627}
+      propertyId: Visual.Color
+      valueType: 3
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 1, g: 0.41960785, b: 0.47843137, a: 0.82}
+      boolValue: 0
+    - target: {fileID: 29458623}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Hover
     Asset: {fileID: 11400000, guid: decf5d0d0c4026f4ba0090b5d571843a, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -794,7 +866,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -814,7 +885,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -834,7 +904,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -854,7 +923,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -869,6 +937,7 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
+  playOnEnable: []
   targetOverrides:
   - Key: Glow
     Mode: 0
@@ -890,59 +959,6 @@ MonoBehaviour:
     Target: {fileID: 1500205753}
     Query: 
     ComponentType: 
-  playOnEnable: []
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 567685029}
-      propertyId: Transform.LocalRotation
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: -0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 399961151}
-      propertyId: RectTransform.AnchoredPosition
-      valueType: 1
-      floatValue: 0
-      vector2Value: {x: 0, y: 15}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1500205752}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 29458621}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 399961151}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 29458627}
-      propertyId: Visual.Color
-      valueType: 3
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 1, g: 0.41960785, b: 0.47843137, a: 0.82}
-    - target: {fileID: 29458623}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -1389,7 +1405,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 76
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -2132,6 +2148,7 @@ GameObject:
   - component: {fileID: 238842910}
   - component: {fileID: 238842909}
   - component: {fileID: 238842908}
+  - component: {fileID: 238842914}
   m_Layer: 0
   m_Name: 05  INTERACTION LAB
   m_TagString: Untagged
@@ -2176,13 +2193,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 238842909}
-  canvasGroup: {fileID: 238842910}
   showAnimation: Show
   hideAnimation: Hide
   hideOnAwake: 0
   deactivateWhenHidden: 1
-  manageInteractability: 1
-  interactableWhileShowing: 0
   onShowStarted:
     m_PersistentCalls:
       m_Calls: []
@@ -2213,13 +2227,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 238842907}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 238842910}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Show
     Asset: {fileID: 11400000, guid: af52b6c7999aa824e95e5ba214a70b66, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -2239,7 +2271,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -2254,26 +2285,9 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
-  targetOverrides: []
   playOnEnable:
   - Show
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 238842907}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 238842910}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
+  targetOverrides: []
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -2344,6 +2358,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 238842906}
   m_CullTransparentMesh: 1
+--- !u!114 &238842914
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 238842906}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e431b4595dae1df4da39bd2b62701e8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  panel: {fileID: 238842908}
+  canvasGroup: {fileID: 238842910}
+  interactableWhileShowing: 0
 --- !u!1 &240786436
 GameObject:
   m_ObjectHideFlags: 0
@@ -3334,13 +3363,71 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 1322253051}
+      propertyId: Transform.LocalRotation
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: -0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1753549320}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 321392245}
+      propertyId: RectTransform.AnchoredPosition
+      valueType: 1
+      floatValue: 0
+      vector2Value: {x: 0, y: 15}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 499582714}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 321392245}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 499582720}
+      propertyId: Visual.Color
+      valueType: 3
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0.68235296, g: 0.44705883, b: 1, a: 0.82}
+      boolValue: 0
+    - target: {fileID: 499582716}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Hover
     Asset: {fileID: 11400000, guid: 95c3b1c600efa764fb7531957983d256, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -3360,7 +3447,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -3380,7 +3466,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -3400,7 +3485,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -3420,7 +3504,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -3435,6 +3518,7 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
+  playOnEnable: []
   targetOverrides:
   - Key: Glow
     Mode: 0
@@ -3456,59 +3540,6 @@ MonoBehaviour:
     Target: {fileID: 1753549321}
     Query: 
     ComponentType: 
-  playOnEnable: []
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 1322253051}
-      propertyId: Transform.LocalRotation
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: -0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1753549320}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 321392245}
-      propertyId: RectTransform.AnchoredPosition
-      valueType: 1
-      floatValue: 0
-      vector2Value: {x: 0, y: 15}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 499582714}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 321392245}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 499582720}
-      propertyId: Visual.Color
-      valueType: 3
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0.68235296, g: 0.44705883, b: 1, a: 0.82}
-    - target: {fileID: 499582716}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -4028,13 +4059,71 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 557797768}
+      propertyId: Transform.LocalRotation
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: -0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1318694987}
+      propertyId: RectTransform.AnchoredPosition
+      valueType: 1
+      floatValue: 0
+      vector2Value: {x: 0, y: 15}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 67065168}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 581418507}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1318694987}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 581418513}
+      propertyId: Visual.Color
+      valueType: 3
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0.68235296, g: 0.44705883, b: 1, a: 0.82}
+      boolValue: 0
+    - target: {fileID: 581418509}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Hover
     Asset: {fileID: 11400000, guid: decf5d0d0c4026f4ba0090b5d571843a, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -4054,7 +4143,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -4074,7 +4162,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -4094,7 +4181,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -4114,7 +4200,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -4129,6 +4214,7 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
+  playOnEnable: []
   targetOverrides:
   - Key: Glow
     Mode: 0
@@ -4150,59 +4236,6 @@ MonoBehaviour:
     Target: {fileID: 67065169}
     Query: 
     ComponentType: 
-  playOnEnable: []
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 557797768}
-      propertyId: Transform.LocalRotation
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: -0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1318694987}
-      propertyId: RectTransform.AnchoredPosition
-      valueType: 1
-      floatValue: 0
-      vector2Value: {x: 0, y: 15}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 67065168}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 581418507}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1318694987}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 581418513}
-      propertyId: Visual.Color
-      valueType: 3
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0.68235296, g: 0.44705883, b: 1, a: 0.82}
-    - target: {fileID: 581418509}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -4325,6 +4358,7 @@ GameObject:
   - component: {fileID: 600606423}
   - component: {fileID: 600606422}
   - component: {fileID: 600606421}
+  - component: {fileID: 600606427}
   m_Layer: 0
   m_Name: 07  UTILITY MIX
   m_TagString: Untagged
@@ -4369,13 +4403,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 600606422}
-  canvasGroup: {fileID: 600606423}
   showAnimation: Show
   hideAnimation: Hide
   hideOnAwake: 0
   deactivateWhenHidden: 1
-  manageInteractability: 1
-  interactableWhileShowing: 0
   onShowStarted:
     m_PersistentCalls:
       m_Calls: []
@@ -4406,13 +4437,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 600606420}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 600606423}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 935324248}
+      propertyId: Image.FillAmount
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Show
     Asset: {fileID: 11400000, guid: af52b6c7999aa824e95e5ba214a70b66, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -4432,7 +4489,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -4454,7 +4510,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -4469,34 +4524,10 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
-  targetOverrides: []
   playOnEnable:
   - Show
   - Content
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 600606420}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 600606423}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 935324248}
-      propertyId: Image.FillAmount
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
+  targetOverrides: []
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -4653,6 +4684,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 600606419}
   m_CullTransparentMesh: 1
+--- !u!114 &600606427
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 600606419}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e431b4595dae1df4da39bd2b62701e8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  panel: {fileID: 600606421}
+  canvasGroup: {fileID: 600606423}
+  interactableWhileShowing: 0
 --- !u!1 &604465944
 GameObject:
   m_ObjectHideFlags: 0
@@ -4725,6 +4771,7 @@ GameObject:
   - component: {fileID: 608311330}
   - component: {fileID: 608311331}
   - component: {fileID: 608311329}
+  - component: {fileID: 608311335}
   m_Layer: 0
   m_Name: 02  MODAL PANEL
   m_TagString: Untagged
@@ -4769,13 +4816,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 608311331}
-  canvasGroup: {fileID: 608311330}
   showAnimation: Show
   hideAnimation: Hide
   hideOnAwake: 0
   deactivateWhenHidden: 1
-  manageInteractability: 1
-  interactableWhileShowing: 0
   onShowStarted:
     m_PersistentCalls:
       m_Calls: []
@@ -4818,13 +4862,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 608311328}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 608311330}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Show
     Asset: {fileID: 0}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -4847,7 +4909,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -4863,26 +4924,9 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
-  targetOverrides: []
   playOnEnable:
   - Show
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 608311328}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 608311330}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
+  targetOverrides: []
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -5121,6 +5165,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 608311327}
   m_CullTransparentMesh: 1
+--- !u!114 &608311335
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 608311327}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e431b4595dae1df4da39bd2b62701e8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  panel: {fileID: 608311329}
+  canvasGroup: {fileID: 608311330}
+  interactableWhileShowing: 0
 --- !u!1 &617978238
 GameObject:
   m_ObjectHideFlags: 0
@@ -5908,7 +5967,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 46
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -6300,6 +6359,7 @@ GameObject:
   - component: {fileID: 894053775}
   - component: {fileID: 894053776}
   - component: {fileID: 894053774}
+  - component: {fileID: 894053780}
   m_Layer: 0
   m_Name: 01  SLIDE PANEL
   m_TagString: Untagged
@@ -6344,13 +6404,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 894053776}
-  canvasGroup: {fileID: 894053775}
   showAnimation: Show
   hideAnimation: Hide
   hideOnAwake: 0
   deactivateWhenHidden: 1
-  manageInteractability: 1
-  interactableWhileShowing: 0
   onShowStarted:
     m_PersistentCalls:
       m_Calls: []
@@ -6393,13 +6450,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 894053773}
+      propertyId: RectTransform.AnchoredPosition
+      valueType: 1
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 894053775}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 894053777}
+      propertyId: Visual.Color
+      valueType: 3
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0.1254902, g: 0.15686275, b: 0.22745098, a: 1}
+      boolValue: 0
   animations:
   - Id: Show
     Asset: {fileID: 0}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -6422,7 +6505,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -6438,33 +6520,9 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
-  targetOverrides: []
   playOnEnable:
   - Show
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 894053773}
-      propertyId: RectTransform.AnchoredPosition
-      valueType: 1
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 894053775}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 894053777}
-      propertyId: Visual.Color
-      valueType: 3
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0.1254902, g: 0.15686275, b: 0.22745098, a: 1}
+  targetOverrides: []
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -6707,6 +6765,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 894053772}
   m_CullTransparentMesh: 1
+--- !u!114 &894053780
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 894053772}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e431b4595dae1df4da39bd2b62701e8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  panel: {fileID: 894053774}
+  canvasGroup: {fileID: 894053775}
+  interactableWhileShowing: 0
 --- !u!1 &926878075
 GameObject:
   m_ObjectHideFlags: 0
@@ -6811,13 +6884,71 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 1909550518}
+      propertyId: Transform.LocalRotation
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: -0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 926878082}
+      propertyId: Visual.Color
+      valueType: 3
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0.27450982, g: 0.8392157, b: 0.627451, a: 0.82}
+      boolValue: 0
+    - target: {fileID: 163176999}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 926878076}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1690253026}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 163176999}
+      propertyId: RectTransform.AnchoredPosition
+      valueType: 1
+      floatValue: 0
+      vector2Value: {x: 0, y: 15}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 926878078}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Hover
     Asset: {fileID: 11400000, guid: 59e29acd9a6b30347ac799df3fc60e39, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -6837,7 +6968,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -6857,7 +6987,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -6877,7 +7006,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -6897,7 +7025,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -6912,6 +7039,7 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
+  playOnEnable: []
   targetOverrides:
   - Key: Glow
     Mode: 0
@@ -6933,59 +7061,6 @@ MonoBehaviour:
     Target: {fileID: 1690253027}
     Query: 
     ComponentType: 
-  playOnEnable: []
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 1909550518}
-      propertyId: Transform.LocalRotation
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: -0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 926878082}
-      propertyId: Visual.Color
-      valueType: 3
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0.27450982, g: 0.8392157, b: 0.627451, a: 0.82}
-    - target: {fileID: 163176999}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 926878076}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1690253026}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 163176999}
-      propertyId: RectTransform.AnchoredPosition
-      valueType: 1
-      floatValue: 0
-      vector2Value: {x: 0, y: 15}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 926878078}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -7632,13 +7707,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 993452806}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 993452812}
+      propertyId: Visual.Color
+      valueType: 3
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0.68235296, g: 0.44705883, b: 1, a: 0.92}
+      boolValue: 0
+    - target: {fileID: 993452808}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Hover
     Asset: {fileID: 11400000, guid: c798421e1c3064744b64c37707146657, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -7658,7 +7759,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -7678,7 +7778,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -7698,7 +7797,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -7718,7 +7816,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -7733,37 +7830,13 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
+  playOnEnable: []
   targetOverrides:
   - Key: Glow
     Mode: 0
     Target: {fileID: 993452812}
     Query: 
     ComponentType: 
-  playOnEnable: []
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 993452806}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 993452812}
-      propertyId: Visual.Color
-      valueType: 3
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0.68235296, g: 0.44705883, b: 1, a: 0.92}
-    - target: {fileID: 993452808}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -7898,6 +7971,7 @@ GameObject:
   - component: {fileID: 1007819419}
   - component: {fileID: 1007819420}
   - component: {fileID: 1007819418}
+  - component: {fileID: 1007819424}
   m_Layer: 0
   m_Name: 03  ALERT PANEL
   m_TagString: Untagged
@@ -7942,13 +8016,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 1007819420}
-  canvasGroup: {fileID: 1007819419}
   showAnimation: Show
   hideAnimation: Hide
   hideOnAwake: 0
   deactivateWhenHidden: 1
-  manageInteractability: 1
-  interactableWhileShowing: 0
   onShowStarted:
     m_PersistentCalls:
       m_Calls: []
@@ -7991,13 +8062,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 1007819417}
+      propertyId: RectTransform.AnchoredPosition
+      valueType: 1
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1007819419}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Show
     Asset: {fileID: 0}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -8020,7 +8109,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -8036,26 +8124,9 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
-  targetOverrides: []
   playOnEnable:
   - Show
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 1007819417}
-      propertyId: RectTransform.AnchoredPosition
-      valueType: 1
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1007819419}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
+  targetOverrides: []
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -8297,6 +8368,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1007819416}
   m_CullTransparentMesh: 1
+--- !u!114 &1007819424
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1007819416}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e431b4595dae1df4da39bd2b62701e8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  panel: {fileID: 1007819418}
+  canvasGroup: {fileID: 1007819419}
+  interactableWhileShowing: 0
 --- !u!1 &1009687421
 GameObject:
   m_ObjectHideFlags: 0
@@ -9162,13 +9248,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 1221372995}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1221373001}
+      propertyId: Visual.Color
+      valueType: 3
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 1, g: 0.41960785, b: 0.47843137, a: 0.92}
+      boolValue: 0
+    - target: {fileID: 1221372997}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Hover
     Asset: {fileID: 11400000, guid: c798421e1c3064744b64c37707146657, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -9188,7 +9300,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -9208,7 +9319,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -9228,7 +9338,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -9248,7 +9357,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -9263,37 +9371,13 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
+  playOnEnable: []
   targetOverrides:
   - Key: Glow
     Mode: 0
     Target: {fileID: 1221373001}
     Query: 
     ComponentType: 
-  playOnEnable: []
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 1221372995}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1221373001}
-      propertyId: Visual.Color
-      valueType: 3
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 1, g: 0.41960785, b: 0.47843137, a: 0.92}
-    - target: {fileID: 1221372997}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -9594,13 +9678,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 1250905598}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1250905603}
+      propertyId: Visual.Color
+      valueType: 3
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0.27450982, g: 0.8392157, b: 0.627451, a: 0.92}
+      boolValue: 0
+    - target: {fileID: 1250905600}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Hover
     Asset: {fileID: 11400000, guid: c798421e1c3064744b64c37707146657, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -9620,7 +9730,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -9640,7 +9749,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -9660,7 +9768,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -9680,7 +9787,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -9695,37 +9801,13 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
+  playOnEnable: []
   targetOverrides:
   - Key: Glow
     Mode: 0
     Target: {fileID: 1250905603}
     Query: 
     ComponentType: 
-  playOnEnable: []
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 1250905598}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1250905603}
-      propertyId: Visual.Color
-      valueType: 3
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0.27450982, g: 0.8392157, b: 0.627451, a: 0.92}
-    - target: {fileID: 1250905600}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -9840,6 +9922,7 @@ GameObject:
   - component: {fileID: 1269067194}
   - component: {fileID: 1269067193}
   - component: {fileID: 1269067192}
+  - component: {fileID: 1269067198}
   m_Layer: 0
   m_Name: 06  SHARED PRESETS
   m_TagString: Untagged
@@ -9884,13 +9967,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 1269067193}
-  canvasGroup: {fileID: 1269067194}
   showAnimation: Show
   hideAnimation: Hide
   hideOnAwake: 0
   deactivateWhenHidden: 1
-  manageInteractability: 1
-  interactableWhileShowing: 0
   onShowStarted:
     m_PersistentCalls:
       m_Calls: []
@@ -9921,13 +10001,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 1269067191}
+      propertyId: RectTransform.AnchoredPosition
+      valueType: 1
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1269067194}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1269067191}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Show
     Asset: {fileID: 11400000, guid: 47b8dcc721036824a88048d2adeefe53, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -9947,7 +10053,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -9962,33 +10067,9 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
-  targetOverrides: []
   playOnEnable:
   - Show
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 1269067191}
-      propertyId: RectTransform.AnchoredPosition
-      valueType: 1
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1269067194}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1269067191}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
+  targetOverrides: []
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -10059,6 +10140,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1269067190}
   m_CullTransparentMesh: 1
+--- !u!114 &1269067198
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1269067190}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e431b4595dae1df4da39bd2b62701e8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  panel: {fileID: 1269067192}
+  canvasGroup: {fileID: 1269067194}
+  interactableWhileShowing: 0
 --- !u!1 &1269833385
 GameObject:
   m_ObjectHideFlags: 0
@@ -11675,13 +11771,71 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 2062377530}
+      propertyId: Transform.LocalRotation
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: -0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 202370927}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1296756867}
+      propertyId: RectTransform.AnchoredPosition
+      valueType: 1
+      floatValue: 0
+      vector2Value: {x: 0, y: 15}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1622758151}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1296756867}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1622758157}
+      propertyId: Visual.Color
+      valueType: 3
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0.35686275, g: 0.54901963, b: 1, a: 0.82}
+      boolValue: 0
+    - target: {fileID: 1622758153}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Hover
     Asset: {fileID: 11400000, guid: 95c3b1c600efa764fb7531957983d256, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -11701,7 +11855,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -11721,7 +11874,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -11741,7 +11893,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -11761,7 +11912,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -11776,6 +11926,7 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
+  playOnEnable: []
   targetOverrides:
   - Key: Glow
     Mode: 0
@@ -11797,59 +11948,6 @@ MonoBehaviour:
     Target: {fileID: 202370928}
     Query: 
     ComponentType: 
-  playOnEnable: []
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 2062377530}
-      propertyId: Transform.LocalRotation
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: -0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 202370927}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1296756867}
-      propertyId: RectTransform.AnchoredPosition
-      valueType: 1
-      floatValue: 0
-      vector2Value: {x: 0, y: 15}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1622758151}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1296756867}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1622758157}
-      propertyId: Visual.Color
-      valueType: 3
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0.35686275, g: 0.54901963, b: 1, a: 0.82}
-    - target: {fileID: 1622758153}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -12966,13 +13064,71 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 1669967079}
+      propertyId: Transform.LocalRotation
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: -0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1791641359}
+      propertyId: Visual.Color
+      valueType: 3
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0.27450982, g: 0.8392157, b: 0.627451, a: 0.82}
+      boolValue: 0
+    - target: {fileID: 337882403}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1791641353}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 2129948615}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 337882403}
+      propertyId: RectTransform.AnchoredPosition
+      valueType: 1
+      floatValue: 0
+      vector2Value: {x: 0, y: 15}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1791641355}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Hover
     Asset: {fileID: 11400000, guid: 59e29acd9a6b30347ac799df3fc60e39, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -12992,7 +13148,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -13012,7 +13167,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -13032,7 +13186,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -13052,7 +13205,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -13067,6 +13219,7 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
+  playOnEnable: []
   targetOverrides:
   - Key: Glow
     Mode: 0
@@ -13088,59 +13241,6 @@ MonoBehaviour:
     Target: {fileID: 2129948616}
     Query: 
     ComponentType: 
-  playOnEnable: []
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 1669967079}
-      propertyId: Transform.LocalRotation
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: -0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1791641359}
-      propertyId: Visual.Color
-      valueType: 3
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0.27450982, g: 0.8392157, b: 0.627451, a: 0.82}
-    - target: {fileID: 337882403}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1791641353}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 2129948615}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 337882403}
-      propertyId: RectTransform.AnchoredPosition
-      valueType: 1
-      floatValue: 0
-      vector2Value: {x: 0, y: 15}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1791641355}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:
@@ -13816,13 +13916,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70237f189bd8abc408134f844556adad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  initialPose:
+    captured: 1
+    values:
+    - target: {fileID: 1867658904}
+      propertyId: Transform.LocalScale
+      valueType: 2
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 1, y: 1, z: 1}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
+    - target: {fileID: 1867658910}
+      propertyId: Visual.Color
+      valueType: 3
+      floatValue: 0
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0.35686275, g: 0.54901963, b: 1, a: 0.92}
+      boolValue: 0
+    - target: {fileID: 1867658906}
+      propertyId: Visual.Alpha
+      valueType: 0
+      floatValue: 1
+      vector2Value: {x: 0, y: 0}
+      vector3Value: {x: 0, y: 0, z: 0}
+      colorValue: {r: 0, g: 0, b: 0, a: 0}
+      boolValue: 0
   animations:
   - Id: Hover
     Asset: {fileID: 11400000, guid: c798421e1c3064744b64c37707146657, type: 2}
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -13842,7 +13968,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -13862,7 +13987,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -13882,7 +14006,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -13902,7 +14025,6 @@ MonoBehaviour:
     Playback:
       UnscaledTime: 1
       BlendMode: 0
-      KillBehavior: 0
       AllowSelfOverride: 1
       LoopMode: 0
       LoopCount: 1
@@ -13917,37 +14039,13 @@ MonoBehaviour:
     OnCancelled:
       m_PersistentCalls:
         m_Calls: []
+  playOnEnable: []
   targetOverrides:
   - Key: Glow
     Mode: 0
     Target: {fileID: 1867658910}
     Query: 
     ComponentType: 
-  playOnEnable: []
-  initialPose:
-    captured: 1
-    values:
-    - target: {fileID: 1867658904}
-      propertyId: Transform.LocalScale
-      valueType: 2
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 1, y: 1, z: 1}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
-    - target: {fileID: 1867658910}
-      propertyId: Visual.Color
-      valueType: 3
-      floatValue: 0
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0.35686275, g: 0.54901963, b: 1, a: 0.92}
-    - target: {fileID: 1867658906}
-      propertyId: Visual.Alpha
-      valueType: 0
-      floatValue: 1
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
-      colorValue: {r: 0, g: 0, b: 0, a: 0}
   hasCapturedInitialValues: 0
   capturedInitialValues: []
   references:

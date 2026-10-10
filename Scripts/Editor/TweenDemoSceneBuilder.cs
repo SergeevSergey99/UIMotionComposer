@@ -222,6 +222,7 @@ namespace UIMotionComposer.Editor
             Require(player != null, name + " has no TweenPlayer.");
             TweenUIPanel panel = gameObject.GetComponent<TweenUIPanel>();
             Require(panel != null, name + " has no TweenUIPanel wrapper.");
+            Require(gameObject.GetComponent<TweenUIPanelInteraction>() != null, name + " has no TweenUIPanelInteraction.");
             TweenAnimation animation = player.FindAnimation(TweenIds.Show);
             Require(animation != null, name + " has no Show animation.");
             Require(player.FindAnimation(TweenIds.Hide) != null, name + " has no Hide animation.");
@@ -716,6 +717,7 @@ namespace UIMotionComposer.Editor
         private static TweenUIPanel AddPanelWrapper(GameObject gameObject)
         {
             TweenUIPanel panel = gameObject.AddComponent<TweenUIPanel>();
+            gameObject.AddComponent<TweenUIPanelInteraction>();
             panel.HideOnAwake = false;
             panel.DeactivateWhenHidden = true;
             panel.ShowAnimationId = TweenIds.Show;

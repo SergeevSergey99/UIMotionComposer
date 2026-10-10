@@ -42,6 +42,7 @@ namespace UIMotionComposer.Editor
                 ValidateRunnerCallbackOrder();
                 ValidateRunnerNestedWait();
                 ValidateClickableStateMachine();
+                ValidatePanelTransitions();
                 ValidateAnimationModeRestore(rect);
 
                 Debug.Log("[UI Motion Composer] Smoke tests passed.");
@@ -873,6 +874,95 @@ namespace UIMotionComposer.Editor
             {
                 UnityEngine.Object.DestroyImmediate(target);
             }
+        }
+
+        internal static void ValidatePanelTransitions()
+        {
+            var target = new GameObject("Panel Validation", typeof(RectTransform), typeof(CanvasGroup),
+                typeof(TweenPlayer), typeof(TweenUIPanel), typeof(TweenUIPanelInteraction));
+            try
+            {
+                TweenPlayer player = target.GetComponent<TweenPlayer>();
+                TweenUIPanel panel = target.GetComponent<TweenUIPanel>();
+                CanvasGroup canvasGroup = target.GetComponent<CanvasGroup>();
+                player.AnimationDefinitions.Add(StateAnimation(TweenIds.Show, new FadeTweenClip
+                {
+                    FadeTarget = TweenFadeTarget.CanvasGroup, Duration = 1f, ToMode = TweenEndpointMode.Custom, ToValue = 1f
+                }));
+                player.AnimationDefinitions.Add(StateAnimation(TweenIds.Hide, new FadeTweenClip
+                {
+                    FadeTarget = TweenFadeTarget.CanvasGroup, Duration = 1f, ToMode = TweenEndpointMode.Custom, ToValue = 0f
+                }));
+
+                // Edit mode does not run Awake on plain MonoBehaviours.
+                InvokeLifecycle(target.GetComponent<TweenUIPanelInteraction>(), "Reset");
+                InvokeLifecycle(target.GetComponent<TweenUIPanelInteraction>(), "Awake");
+
+                var events = new System.Collections.Generic.List<string>();
+                panel.ShowStarted += () => events.Add("ShowStarted");
+                panel.ShowCompleted += () => events.Add("ShowCompleted");
+                panel.ShowCancelled += () => events.Add("ShowCancelled");
+                panel.HideStarted += () => events.Add("HideStarted");
+                panel.HideCompleted += () => events.Add("HideCompleted");
+                panel.HideCancelled += () => events.Add("HideCancelled");
+
+                panel.Show();
+                Require(panel.State == TweenPanelState.Showing && !canvasGroup.interactable && !canvasGroup.blocksRaycasts,
+                    "Showing must keep input off unless Interactable While Showing is set.");
+                TickRunnerForValidation(0.5f);
+                panel.Hide();
+                Require(events.SequenceEqual(new[] { "ShowStarted", "ShowCancelled", "HideStarted" }),
+                    "Interrupting Show must cancel it before Hide starts: " + string.Join(", ", events));
+                TickRunnerForValidation(1f);
+                Require(panel.State == TweenPanelState.Hidden && !target.activeSelf && events.Last() == "HideCompleted",
+                    "Hide did not complete and deactivate the panel.");
+
+                events.Clear();
+                Action showAgain = null;
+                showAgain = () =>
+                {
+                    panel.HideCompleted -= showAgain;
+                    panel.Show();
+                };
+                panel.InstantShow();
+                panel.Hide();
+                panel.HideCompleted += showAgain;
+                TickRunnerForValidation(1f);
+                Require(target.activeSelf && panel.State == TweenPanelState.Showing && panel.IsTransitioning,
+                    "Show called from HideCompleted was undone by the completed Hide deactivating the panel.");
+                TickRunnerForValidation(1f);
+                Require(panel.State == TweenPanelState.Visible && canvasGroup.interactable && canvasGroup.blocksRaycasts,
+                    "Completed Show must turn input back on.");
+
+                events.Clear();
+                Action hideInstead = null;
+                hideInstead = () =>
+                {
+                    panel.ShowStarted -= hideInstead;
+                    panel.Hide();
+                };
+                panel.InstantHide();
+                panel.ShowStarted += hideInstead;
+                panel.Show();
+                Require(panel.State == TweenPanelState.Hiding && !player.IsPlaying(TweenIds.Show) &&
+                        player.IsPlaying(TweenIds.Hide),
+                    "Hide called from ShowStarted must stop Show instead of running alongside it.");
+
+                player.StopAll();
+                Require(panel.State == TweenPanelState.Visible && canvasGroup.interactable &&
+                        events.Last() == "HideCancelled",
+                    "Stopping Hide from outside must settle the panel as Visible and report HideCancelled.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(target);
+            }
+        }
+
+        private static void InvokeLifecycle(MonoBehaviour component, string method)
+        {
+            component.GetType().GetMethod(method, BindingFlags.NonPublic | BindingFlags.Instance)
+                ?.Invoke(component, null);
         }
 
         private static TweenAnimation StateAnimation(string id, BaseTweenClip clip, bool infinite = false)
